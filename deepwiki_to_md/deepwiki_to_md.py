@@ -54,9 +54,10 @@ class DeepwikiScraper:
                     logger.error(f"Error fetching {url} after {max_retries} retries: {e}")
                     return None
 
-                # Calculate exponential backoff delay
+                # Calculate exponential backoff delay with jitter
                 delay = base_delay * (2 ** (retries - 1))
-                logger.warning(f"Retry {retries}/{max_retries} for {url} after {delay}s delay. Error: {e}")
+                delay += random.uniform(0, 0.5)  # Add jitter
+                logger.warning(f"Retry {retries}/{max_retries} for {url} after {delay:.2f}s delay. Error: {e}")
                 time.sleep(delay)
 
         return None
@@ -145,7 +146,7 @@ class DeepwikiScraper:
                     main_content = body
 
         if not main_content or len(main_content.get_text(strip=True)) == 0:
-            logger.warning("Main content element not found")
+            logger.warning(f"Main content element not found for URL: {url}")
             return ""
 
         return main_content
