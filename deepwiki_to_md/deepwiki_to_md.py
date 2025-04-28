@@ -30,23 +30,36 @@ class DeepwikiScraper:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
 
-    def get_page_content(self, url):
+    def get_page_content(self, url, max_retries=3, base_delay=1):
         """
-        Get the HTML content of a page.
+        Get the HTML content of a page with retry mechanism and exponential backoff.
 
         Args:
             url (str): The URL to fetch.
+            max_retries (int): Maximum number of retry attempts.
+            base_delay (int): Base delay in seconds between retries.
 
         Returns:
             str: The HTML content of the page.
         """
-        try:
-            response = self.session.get(url)
-            response.raise_for_status()
-            return response.text
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching {url}: {e}")
-            return None
+        retries = 0
+        while retries <= max_retries:
+            try:
+                response = self.session.get(url, timeout=10)
+                response.raise_for_status()
+                return response.text
+            except requests.exceptions.RequestException as e:
+                retries += 1
+                if retries > max_retries:
+                    logger.error(f"Error fetching {url} after {max_retries} retries: {e}")
+                    return None
+
+                # Calculate exponential backoff delay
+                delay = base_delay * (2 ** (retries - 1))
+                logger.warning(f"Retry {retries}/{max_retries} for {url} after {delay}s delay. Error: {e}")
+                time.sleep(delay)
+
+        return None
 
     def extract_navigation_items(self, html_content, current_url):
         """
