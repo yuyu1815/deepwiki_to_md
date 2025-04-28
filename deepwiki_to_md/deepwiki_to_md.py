@@ -146,7 +146,7 @@ class DeepwikiScraper:
                     main_content = body
 
         if not main_content or len(main_content.get_text(strip=True)) == 0:
-            logger.warning("Main content element not found")
+            logger.warning(f"Main content element not found for URL: {url}")
             return ""
 
         return main_content
