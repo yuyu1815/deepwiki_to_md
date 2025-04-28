@@ -16,6 +16,20 @@ def parse_arguments():
     parser.add_argument('--output-dir', '-o', default='Documents',
                         help='Output directory for Markdown files (default: Documents)')
 
+    parser.add_argument('--use-direct-scraper', action='store_true',
+                        help='Use DirectDeepwikiScraper after dynamic page loading (default: True)')
+
+    parser.add_argument('--no-direct-scraper', action='store_true',
+                        help='Disable DirectDeepwikiScraper after dynamic page loading')
+
+    parser.add_argument('--use-alternative-scraper', action='store_true',
+                        help='Use scrape_deepwiki from direct_scraper.py for pages without navigation items (default: True)')
+
+    parser.add_argument('--no-alternative-scraper', action='store_true',
+                        help='Disable scrape_deepwiki from direct_scraper.py for pages without navigation items')
+
+    # Selenium-related arguments removed - only static requests are supported
+
     parser.add_argument('library_url', nargs='?',
                         help='URL of the library to scrape (alternative to --library)')
 
@@ -46,8 +60,18 @@ def main():
         for name, url in args.library
     ]
 
+    # Determine whether to use DirectDeepwikiScraper
+    use_direct_scraper = not args.no_direct_scraper
+
+    # Determine whether to use alternative scraper
+    use_alternative_scraper = not args.no_alternative_scraper
+
     # Create and run the scraper
-    scraper = DeepwikiScraper(args.output_dir)
+    scraper = DeepwikiScraper(
+        output_dir=args.output_dir,
+        use_direct_scraper=use_direct_scraper,
+        use_alternative_scraper=use_alternative_scraper
+    )
 
     try:
         scraper.run(libraries)
