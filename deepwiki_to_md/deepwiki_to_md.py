@@ -234,7 +234,7 @@ class DeepwikiScraper:
             # Use the path from the URL for the directory structure
             # Replace forward slashes with the appropriate path separator
             path_parts = path.split('/')
-            dir_path = os.path.join(os.getcwd(), self.output_dir, *path_parts, "md")
+            dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, *path_parts, "md")
         else:
             # Fallback to the old behavior
             dir_path = os.path.join(os.getcwd(), self.output_dir, library_name, "md")
