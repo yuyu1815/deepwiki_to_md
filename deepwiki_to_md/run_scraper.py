@@ -1,6 +1,8 @@
 import argparse
 import sys
 
+import requests
+
 from .deepwiki_to_md import DeepwikiScraper
 
 
@@ -51,7 +53,7 @@ def main():
         scraper.run(libraries)
         print(f"Scraping completed successfully. Markdown files saved to {args.output_dir}")
         return 0
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
