@@ -1,11 +1,48 @@
 import logging
 import os
+import random
 import re
+import socket
 import time
 from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from markdownify import markdownify
+
+# Import DirectDeepwikiScraper
+try:
+    from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper
+except ImportError:
+    # If the module import fails, try relative import
+    try:
+        from .direct_scraper import DirectDeepwikiScraper
+    except ImportError:
+        logging.error("Could not import DirectDeepwikiScraper module")
+        # Define a dummy class that does nothing if import fails
+        class DirectDeepwikiScraper:
+            def __init__(self, *args, **kwargs):
+                pass
+            def scrape_page(self, *args, **kwargs):
+                return None
+
+# Import scrape_deepwiki from direct_scraper.py
+try:
+    from deepwiki_to_md.direct_scraper import scrape_deepwiki
+except ImportError:
+    # If the module import fails, try relative import
+    try:
+        from .direct_scraper import scrape_deepwiki
+    except ImportError:
+        logging.error("Could not import scrape_deepwiki function from direct_scraper.py")
+        # Define a dummy function that does nothing if import fails
+        def scrape_deepwiki(url):
+            logging.error("scrape_deepwiki function not available")
+            return None
+
+# Selenium is no longer used - only static requests are supported
+HAS_SELENIUM = False
+
 
 # Configure logging
 logging.basicConfig(
@@ -14,37 +51,109 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Import fix_markdown_links function
+try:
+    from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+except ImportError:
+    # If the module import fails, try relative import
+    try:
+        from .fix_markdown_links import fix_markdown_links
+    except ImportError:
+        logger.error("Could not import fix_markdown_links module")
+        # Define a dummy function that does nothing if import fails
+        def fix_markdown_links(directory):
+            logger.error("fix_markdown_links module not available")
+            return
+
 
 class DeepwikiScraper:
-    def __init__(self, output_dir="Documents"):
+    def __init__(self, output_dir="Documents", use_direct_scraper=True, use_alternative_scraper=True):
         """
         Initialize the DeepwikiScraper.
 
         Args:
             output_dir (str): The base directory to save the converted Markdown files.
+            use_direct_scraper (bool): Whether to use DirectDeepwikiScraper for scraping.
+            use_alternative_scraper (bool): Whether to use scrape_deepwiki from direct_scraper.py for scraping. When True, this method is prioritized. Default is True.
         """
         self.output_dir = output_dir
+        self.use_direct_scraper = use_direct_scraper
+        self.use_alternative_scraper = use_alternative_scraper
+
+        # Initialize DirectDeepwikiScraper
+        if self.use_direct_scraper:
+            self.direct_scraper = DirectDeepwikiScraper(output_dir)
+
+        # Initialize requests session for static content
         self.session = requests.Session()
         # Set a user agent to mimic a browser
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
 
-    def get_page_content(self, url, max_retries=3, base_delay=1):
+    def is_domain_reachable(self, domain, timeout=3):
+        """
+        Check if a domain is reachable by attempting to establish a socket connection.
+
+        Args:
+            domain (str): The domain to check.
+            timeout (int): The timeout in seconds for the connection attempt.
+
+        Returns:
+            bool: True if the domain is reachable, False otherwise.
+        """
+        # Try HTTPS (port 443) first
+        try:
+            socket.create_connection((domain, 443), timeout=timeout)
+            return True
+        except (socket.timeout, socket.error):
+            # If HTTPS fails, try HTTP (port 80)
+            try:
+                socket.create_connection((domain, 80), timeout=timeout)
+                return True
+            except (socket.timeout, socket.error):
+                return False
+
+    # Selenium methods removed - only static requests are supported
+
+    def get_page_content(self, url, max_retries=3, base_delay=1, library_name=None):
         """
         Get the HTML content of a page with retry mechanism and exponential backoff.
+        If DirectDeepwikiScraper is enabled, it will be used for scraping.
 
         Args:
             url (str): The URL to fetch.
             max_retries (int): Maximum number of retry attempts.
             base_delay (int): Base delay in seconds between retries.
+            library_name (str, optional): The name of the library for DirectDeepwikiScraper.
 
         Returns:
             str: The HTML content of the page.
         """
+        # Log the URL being fetched
+        logger.info(f"Getting page content for URL: {url}")
+
+        # Use DirectDeepwikiScraper if enabled and library_name is provided
+        if self.use_direct_scraper and library_name:
+            try:
+                logger.info(f"Using DirectDeepwikiScraper for {url}")
+                # Use DirectDeepwikiScraper with debug mode disabled
+                md_file_path = self.direct_scraper.scrape_page(url, library_name, save_html=True, debug=False)
+                if md_file_path:
+                    logger.info(f"DirectDeepwikiScraper successfully scraped {url} to {md_file_path}")
+                    # If DirectDeepwikiScraper was successful, we can return the HTML content from the regular request
+                    # This ensures we have the HTML content for further processing
+            except Exception as e:
+                logger.error(f"Error using DirectDeepwikiScraper for {url}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # Continue with regular request if DirectDeepwikiScraper fails
+
+        # Use requests to fetch the page
         retries = 0
         while retries <= max_retries:
             try:
+                logger.info(f"Fetching {url} with requests")
                 response = self.session.get(url, timeout=10)
                 response.raise_for_status()
                 return response.text
@@ -56,11 +165,15 @@ class DeepwikiScraper:
 
                 # Calculate exponential backoff delay with jitter
                 delay = base_delay * (2 ** (retries - 1))
-                delay += random.uniform(0, 0.5)  # Add jitter
+                delay += random.uniform(0, 0.2)  # Add jitter
                 logger.warning(f"Retry {retries}/{max_retries} for {url} after {delay:.2f}s delay. Error: {e}")
                 time.sleep(delay)
 
         return None
+
+    # Selenium methods removed - only static requests are supported
+
+    # Selenium cleanup methods removed - only static requests are supported
 
     def extract_navigation_items(self, html_content, current_url):
         """
@@ -97,48 +210,49 @@ class DeepwikiScraper:
 
         return nav_items
 
-    def extract_content(self, html_content):
+    def extract_content(self, html_content, url):
         """
-        Extract the main content from the page.
+        ページからメインコンテンツを抽出します。
 
         Args:
-            html_content (str): The HTML content of the page.
+            html_content (str): ページのHTMLコンテンツ。
+            url (str): コンテンツを抽出するページのURL。
 
         Returns:
-            str: The main content of the page.
+            BeautifulSoup.Tag | str: ページのメインコンテンツ要素、または見つからない場合は空文字列。
         """
         if not html_content:
             return ""
 
         soup = BeautifulSoup(html_content, 'html.parser')
 
-        # Try multiple possible selectors for the main content
-        # Order from most specific to most general
+        # メインコンテンツの可能性のあるセレクターを複数試す
+        # より具体的なものから一般的なものへ
         selectors = [
-            'main article',  # Original selector
-            'main .content',  # Common pattern for main content
-            'main',  # Any main element
-            'article',  # Any article element
-            '.content',  # Common class for content
-            '.article-content',  # Common class for article content
-            '#content',  # Common ID for content
-            '.markdown-body',  # Common class for markdown content
-            '.documentation-content',  # Common class for documentation
-            'div.container div.row div.col'  # Bootstrap-like layout
+            'main article',  # 元のセレクター
+            'main .content',  # メインコンテンツの一般的なパターン
+            'main',  # main要素
+            'article',  # article要素
+            '.content',  # contentクラス
+            '.article-content',  # article-contentクラス
+            '#content',  # content ID
+            '.markdown-body',  # markdownコンテンツの一般的なクラス
+            '.documentation-content',  # ドキュメンテーションコンテンツの一般的なクラス
+            'div.container div.row div.col'  # Bootstrapのようなレイアウト
         ]
 
         main_content = None
         for selector in selectors:
             main_content = soup.select_one(selector)
             if main_content and len(main_content.get_text(strip=True)) > 0:
-                logger.info(f"Found content using selector: {selector}")
+                logger.info(f"セレクターを使用してコンテンツを発見: {selector}")
                 break
 
         if not main_content:
-            # If no specific container found, try to get the body or largest text container
+            # 特定のコンテナが見つからない場合、bodyまたは最大のテキストコンテナを取得しようとする
             body = soup.find('body')
             if body:
-                # Find the div with the most text content
+                # 最も多くのテキストコンテンツを持つdivを見つける
                 divs = body.find_all('div', recursive=False)
                 if divs:
                     main_content = max(divs, key=lambda x: len(x.get_text(strip=True)))
@@ -146,14 +260,19 @@ class DeepwikiScraper:
                     main_content = body
 
         if not main_content or len(main_content.get_text(strip=True)) == 0:
-            logger.warning(f"Main content element not found for URL: {url}")
+            # ここで url 引数が利用可能になる
+            logger.warning(f"URLのメインコンテンツ要素が見つかりません: {url}")
             return ""
 
         return main_content
 
     def html_to_markdown(self, html_element):
         """
-        Convert HTML content to Markdown.
+        Convert HTML content to Markdown using markdownify.
+
+        This method performs the following operations:
+        1. Removes the navigation menu (ul.flex-1.flex-shrink-0.space-y-1.overflow-y-auto.py-1)
+        2. Converts the HTML to Markdown format
 
         Args:
             html_element: The BeautifulSoup element containing the HTML content.
@@ -164,57 +283,26 @@ class DeepwikiScraper:
         if not html_element:
             return ""
 
-        # This is a simple implementation. For more complex conversions,
-        # consider using a library like html2text or markdownify
-        markdown = ""
+        # If html_element is already a BeautifulSoup object, use it directly
+        # Otherwise, parse it with BeautifulSoup
+        if isinstance(html_element, BeautifulSoup):
+            soup = html_element
+        elif hasattr(html_element, 'name'):  # Check if it's a BeautifulSoup Tag
+            soup = BeautifulSoup(str(html_element), 'html.parser')
+        else:
+            soup = BeautifulSoup(str(html_element), 'html.parser')
 
-        # Process headings
-        for i in range(1, 7):
-            for heading in html_element.find_all(f'h{i}'):
-                text = heading.get_text(strip=True)
-                markdown += f"{'#' * i} {text}\n\n"
-                heading.decompose()
+        # Find and remove the navigation menu
+        nav_ul = soup.select_one('ul.flex-1.flex-shrink-0.space-y-1.overflow-y-auto.py-1')
+        if nav_ul:
+            nav_ul.decompose()
+            logger.info("Navigation menu removed before Markdown conversion")
 
-        # Process paragraphs
-        for p in html_element.find_all('p'):
-            text = p.get_text(strip=True)
-            markdown += f"{text}\n\n"
+        # Convert the modified HTML to string
+        html_str = str(soup)
 
-        # Process lists
-        for ul in html_element.find_all('ul'):
-            for li in ul.find_all('li'):
-                text = li.get_text(strip=True)
-                markdown += f"- {text}\n"
-            markdown += "\n"
-
-        for ol in html_element.find_all('ol'):
-            for i, li in enumerate(ol.find_all('li'), 1):
-                text = li.get_text(strip=True)
-                markdown += f"{i}. {text}\n"
-            markdown += "\n"
-
-        # Process code blocks
-        for pre in html_element.find_all('pre'):
-            code = pre.get_text()
-            markdown += f"```\n{code}\n```\n\n"
-
-        # Process inline code
-        for code in html_element.find_all('code'):
-            if code.parent.name != 'pre':  # Skip code inside pre (already handled)
-                text = code.get_text()
-                markdown += f"`{text}`"
-
-        # Process links
-        for a in html_element.find_all('a'):
-            text = a.get_text(strip=True)
-            href = a.get('href', '')
-            markdown += f"[{text}]({href})"
-
-        # Process images
-        for img in html_element.find_all('img'):
-            alt = img.get('alt', '')
-            src = img.get('src', '')
-            markdown += f"![{alt}]({src})"
+        # Use markdownify to convert HTML to Markdown
+        markdown = markdownify(html_str, heading_style="ATX")
 
         return markdown
 
@@ -251,6 +339,23 @@ class DeepwikiScraper:
 
         logger.info(f"Saved {file_path}")
 
+        # Fix markdown links in the file immediately after saving
+        # Use a regular expression to replace links with URLs with links with empty parentheses
+        link_pattern = re.compile(r'\[([^\]]+)\]\((?![\s\)])[^\)]+\)')
+
+        # Read the file content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Replace links with URLs with links with empty parentheses
+        modified_content = link_pattern.sub(r'[\1]()', content)
+
+        # Write the modified content back to the file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(modified_content)
+
+        logger.debug(f"Fixed links in {file_path}")
+
     def scrape_library(self, library_name, library_url):
         """
         Scrape a library and convert its content to Markdown.
@@ -263,7 +368,20 @@ class DeepwikiScraper:
 
         # Extract the path from the URL
         parsed_url = urlparse(library_url)
+        domain = parsed_url.netloc
         full_path = parsed_url.path.strip('/')  # Remove leading/trailing slashes
+
+        # Check if the domain is a placeholder or example domain
+        if "example.com" in domain or not domain:
+            logger.error(f"Cannot scrape from placeholder or invalid domain: {domain}")
+            logger.error(f"Please use a valid domain in the URL: {library_url}")
+            return
+
+        # Check if the domain is reachable
+        if not self.is_domain_reachable(domain):
+            logger.error(f"Cannot connect to domain: {domain}")
+            logger.error(f"Please check your internet connection and make sure the domain is correct: {library_url}")
+            return
 
         # Extract only the last part of the path (e.g., "cpython" from "python/cpython")
         path_parts = full_path.split('/')
@@ -272,6 +390,37 @@ class DeepwikiScraper:
         else:
             url_path = full_path
 
+        # Prioritize using direct_scraper.py scraper
+        if self.use_alternative_scraper:
+            logger.info(f"Prioritizing scrape_deepwiki from direct_scraper.py for {library_url}")
+            try:
+                # Use scrape_deepwiki to get the content
+                response = scrape_deepwiki(library_url, debug=False)
+                if response and response.status_code == 200:
+                    # Parse the response content
+                    direct_html_content = response.text
+                    # Extract the main content
+                    main_content = self.extract_content(direct_html_content, library_url)
+                    if main_content:
+                        markdown = self.html_to_markdown(main_content)
+                        self.save_markdown(library_name, library_name, markdown, url_path)
+
+                        # Fix markdown links in the output directory
+                        md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                        logger.info(f"Fixing markdown links in {md_directory}")
+                        fix_markdown_links(md_directory)
+                        return
+                    else:
+                        logger.warning(f"No main content found in response from scrape_deepwiki for {library_url}")
+                else:
+                    logger.error(f"Failed to fetch content with scrape_deepwiki for {library_url}")
+            except Exception as e:
+                logger.error(f"Error using scrape_deepwiki for {library_url}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                logger.info(f"Falling back to standard scraping method for {library_url}")
+
+        # If direct_scraper.py failed or is not used, fall back to the standard method
         # Get the library's main page
         html_content = self.get_page_content(library_url)
         if not html_content:
@@ -283,11 +432,17 @@ class DeepwikiScraper:
 
         if not nav_items:
             logger.warning(f"No navigation items found for {library_name}")
-            # Try to extract and save the main page content
-            main_content = self.extract_content(html_content)
+
+            # If no navigation items and direct_scraper.py already failed, use the original method
+            main_content = self.extract_content(html_content, library_url)
             if main_content:
                 markdown = self.html_to_markdown(main_content)
                 self.save_markdown(library_name, library_name, markdown, url_path)
+
+                # Fix markdown links in the output directory
+                md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                logger.info(f"Fixing markdown links in {md_directory}")
+                fix_markdown_links(md_directory)
             return
 
         # Process each navigation item
@@ -301,13 +456,13 @@ class DeepwikiScraper:
             time.sleep(1)
 
             # Get the page content
-            page_html = self.get_page_content(url)
+            page_html = self.get_page_content(url, library_name=library_name)
             if not page_html:
                 logger.error(f"Failed to fetch content for {title}")
                 continue
 
             # Extract the main content
-            main_content = self.extract_content(page_html)
+            main_content = self.extract_content(page_html, url)
             if not main_content:
                 logger.warning(f"No main content found for {title}")
                 continue
@@ -317,6 +472,11 @@ class DeepwikiScraper:
 
             # Save the Markdown content
             self.save_markdown(library_name, title, markdown, url_path)
+
+        # After all navigation items are processed, fix markdown links in the output directory
+        md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+        logger.info(f"Fixing markdown links in {md_directory}")
+        fix_markdown_links(md_directory)
 
     def run(self, libraries):
         """
@@ -342,5 +502,10 @@ if __name__ == "__main__":
         # Add more libraries as needed
     ]
 
+    # Create a scraper with default settings (using alternative scraper by default)
     scraper = DeepwikiScraper()
     scraper.run(libraries)
+
+    # Example of disabling the alternative scraper (direct_scraper.py will not be prioritized)
+    # scraper_without_alternative = DeepwikiScraper(use_alternative_scraper=False)
+    # scraper_without_alternative.run(libraries)
