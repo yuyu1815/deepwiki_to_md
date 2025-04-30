@@ -142,34 +142,8 @@ class DirectMarkdownScraper:
         filename = last_path_part if page_path else 'index'
         filename = re.sub(r'[<>:"/\\|?*]', '_', filename)  # 無効な文字を置換
 
-        # JavaScriptを削除する
-        # Markdownの実際のコンテンツは通常、"# "で始まる見出しから始まる
+        # JavaScriptを削除する機能は削除されました
         cleaned_content = content
-
-        # より確実にJavaScriptを削除するために、複数のパターンを試す
-        # 1. 最初の"# "で始まる行を探す（最も一般的なMarkdownの見出し）
-        markdown_start = re.search(r'^#\s+', content, re.MULTILINE)
-
-        if markdown_start:
-            # 見出しの開始位置から後ろの部分だけを保持
-            start_pos = markdown_start.start()
-            cleaned_content = content[start_pos:]
-            logger.info(f"JavaScriptを削除しました: {len(content) - len(cleaned_content)} バイト")
-        else:
-            # 2. 見出しが見つからない場合、T47ac,# のようなパターンを探す（特定のフォーマット）
-            alt_pattern = re.search(r'T[0-9a-f]+,#\s+', content)
-            if alt_pattern:
-                start_pos = alt_pattern.start()
-                # "T47ac," などのプレフィックスをスキップして、"#" から始まるようにする
-                hash_pos = content.find('#', start_pos)
-                if hash_pos != -1:
-                    cleaned_content = content[hash_pos:]
-                    logger.info(
-                        f"代替パターンを使用してJavaScriptを削除しました: {len(content) - len(cleaned_content)} バイト")
-                else:
-                    logger.warning(f"'#'記号が見つかりませんでした。JavaScriptを削除できない可能性があります。")
-            else:
-                logger.warning(f"Markdownの見出しが見つかりませんでした。JavaScriptを削除できない可能性があります。")
 
         # ファイル末尾の独自データを削除する
         # 独自データは通常、特定のパターンで始まる行から始まる
@@ -188,6 +162,13 @@ class DirectMarkdownScraper:
                 original_length = len(cleaned_content)
                 cleaned_content = cleaned_content[:end_pos].rstrip()
                 logger.info(f"ファイル末尾の独自データを削除しました: {original_length - len(cleaned_content)} バイト")
+
+        # 最初の28行を削除
+        if cleaned_content:
+            lines = cleaned_content.split('\n')
+            if len(lines) > 28:
+                cleaned_content = '\n'.join(lines[28:])
+                logger.info(f"最初の28行を削除しました: {filename}.md")
 
         # Markdownファイルを保存
         md_file_path = os.path.join(output_path, f"{filename}.md")

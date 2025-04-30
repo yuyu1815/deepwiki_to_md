@@ -215,6 +215,13 @@ class DirectDeepwikiScraper:
         filename = page_path.strip('/').split('/')[-1] if page_path else 'index'
         filename = re.sub(r'[<>:"/\\|?*]', '_', filename)  # 無効な文字を置換
 
+        # 最初の28行を削除
+        if markdown_content:
+            lines = markdown_content.split('\n')
+            if len(lines) > 28:
+                markdown_content = '\n'.join(lines[28:])
+                logger.info(f"最初の28行を削除しました: {filename}.md")
+
         # Markdownファイルを保存
         md_file_path = os.path.join(output_path, f"{filename}.md")
         with open(md_file_path, 'w', encoding='utf-8') as f:

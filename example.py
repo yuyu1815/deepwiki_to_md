@@ -3,7 +3,6 @@ DeepwikiScraper クラスと DirectDeepwikiScraper クラスを直接使用す�
 このスクリプトは静的リクエストのみを使用します。
 """
 from deepwiki_to_md.deepwiki_to_md import DeepwikiScraper
-from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper # DirectDeepwikiScraper をインポート
 
 
 def main():
@@ -17,30 +16,12 @@ def main():
 
     # DeepwikiScraper インスタンスを作成します
     print("\nInitializing scraper...")
-    scraper = DeepwikiScraper(
-        output_dir="Documents"
-    )
+    scraper = DeepwikiScraper(output_dir="Documents")
 
     # ライブラリに対してスクレイパーを実行します
     for library in libraries:
         print(f"Scraping {library['name']}...")
         scraper.scrape_library(library['name'], library['url'])
-
-    # 例 2: 別のドメインからのスクレイピング
-    other_libraries = [
-        {
-            "name": "javascript",
-            "url": "https://deepwiki.example.com/javascript" # 例示用の架空URL
-        }
-    ]
-
-    # 異なる出力ディレクトリを持つ別の DeepwikiScraper インスタンスを作成します
-    other_scraper = DeepwikiScraper(output_dir="OtherDocuments")
-
-    # 各ライブラリに対してスクレイパーを実行します
-    for library in other_libraries:
-        print(f"Scraping {library['name']}...")
-        other_scraper.scrape_library(library['name'], library['url'])
 
     # 例 3: DirectDeepwikiScraper を使用した直接スクレイピング
     direct_libraries = [
@@ -51,7 +32,7 @@ def main():
     ]
 
     # DirectDeepwikiScraper インスタンスを作成します
-    direct_scraper = DirectDeepwikiScraper(output_dir="DirectScrapedDocuments")
+    direct_scraper = DeepwikiScraper(output_dir="DirectScrapedDocuments", use_direct_scraper=True)
 
     # 各ライブラリ (この場合は特定のページ) に対してスクレイパーを実行します
     for library in direct_libraries:
