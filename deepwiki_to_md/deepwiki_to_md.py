@@ -100,6 +100,7 @@ class DeepwikiScraper:
         # Try HTTPS (port 443) first
         try:
             socket.create_connection((domain, 443), timeout=timeout)
+            logger.debug(f"HTTPS connection to {domain} succeeded")
             return True
         except (socket.timeout, socket.gaierror, socket.herror, socket.error) as e:
             # Log the specific error for debugging
@@ -107,6 +108,7 @@ class DeepwikiScraper:
             # If HTTPS fails, try HTTP (port 80)
             try:
                 socket.create_connection((domain, 80), timeout=timeout)
+                logger.debug(f"HTTP connection to {domain} succeeded")
                 return True
             except (socket.timeout, socket.gaierror, socket.herror, socket.error) as e:
                 # Log the specific error for debugging
@@ -137,22 +139,16 @@ class DeepwikiScraper:
             try:
                 logger.info(f"Using DirectDeepwikiScraper for {url}")
                 # Use DirectDeepwikiScraper with debug mode disabled
-                md_file_path = self.direct_scraper.scrape_page(url, library_name, save_html=True, debug=False)
+                md_file_path = self.direct_scraper.scrape_page(url, library_name, debug=False)
                 if md_file_path:
                     logger.info(f"DirectDeepwikiScraper successfully scraped {url} to {md_file_path}")
                     # If DirectDeepwikiScraper was successful, we can return the HTML content from the regular request
                     # This ensures we have the HTML content for further processing
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Network error using DirectDeepwikiScraper for {url}: {e}")
-                # Continue with regular request if DirectDeepwikiScraper fails due to network issues
-            except (ValueError, TypeError) as e:
-                logger.error(f"Parameter error using DirectDeepwikiScraper for {url}: {e}")
-                # Continue with regular request if DirectDeepwikiScraper fails due to parameter issues
             except Exception as e:
-                logger.error(f"Unexpected error using DirectDeepwikiScraper for {url}: {e}")
+                logger.error(f"Error using DirectDeepwikiScraper for {url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
-                # Continue with regular request if DirectDeepwikiScraper fails for any other reason
+                # Continue with regular request if DirectDeepwikiScraper fails for any reason
 
         # Use requests to fetch the page
         retries = 0
@@ -315,6 +311,27 @@ class DeepwikiScraper:
 
         return markdown
 
+    def construct_dir_path(self, path=None, library_name=None):
+        """
+        Construct the directory path for saving files.
+
+        Args:
+            path (str, optional): The path to use for the directory structure. If None, only library_name is used.
+            library_name (str, optional): The name of the library. Required if path is None.
+
+        Returns:
+            str: The constructed directory path.
+        """
+        if path:
+            # Use the path from the URL for the directory structure
+            dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, path, "md")
+        else:
+            # Fallback to the old behavior
+            if not library_name:
+                raise ValueError("Either path or library_name must be provided")
+            dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, library_name, "md")
+        return dir_path
+
     def save_markdown(self, library_name, title, markdown_content, path=None):
         """
         Save the Markdown content to a file.
@@ -327,13 +344,7 @@ class DeepwikiScraper:
         """
         # Create directory structure if it doesn't exist
         # Use current working directory instead of a fixed path
-        if path:
-            # Use the path from the URL for the directory structure
-            # The path is already the last part of the URL path (e.g., "cpython")
-            dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, path, "md")
-        else:
-            # Fallback to the old behavior
-            dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, library_name, "md")
+        dir_path = self.construct_dir_path(path, library_name)
         os.makedirs(dir_path, exist_ok=True)
 
         # Sanitize the title to create a valid filename
@@ -435,33 +446,14 @@ class DeepwikiScraper:
                         self.save_markdown(library_name, library_name, markdown, url_path)
 
                         # Fix markdown links in the output directory
-                        try:
-                            md_directory = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, url_path, "md")
-                            logger.info(f"Fixing markdown links in {md_directory}")
-                            fix_markdown_links(md_directory)
-                        except Exception as e:
-                            logger.error(f"Error fixing markdown links in {md_directory}: {e}")
-                            import traceback
-                            logger.error(traceback.format_exc())
+                        self.fix_markdown_links_in_directory(url_path)
                         return
                     else:
                         logger.warning(f"No main content found in response from scrape_deepwiki for {library_url}")
                 else:
                     logger.error(f"Failed to fetch content with scrape_deepwiki for {library_url}")
-            except requests.exceptions.ConnectionError as e:
-                logger.error(f"Connection error using scrape_deepwiki for {library_url}: {e}")
-                logger.info(f"Falling back to standard scraping method for {library_url}")
-            except requests.exceptions.Timeout as e:
-                logger.error(f"Timeout error using scrape_deepwiki for {library_url}: {e}")
-                logger.info(f"Falling back to standard scraping method for {library_url}")
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Request error using scrape_deepwiki for {library_url}: {e}")
-                logger.info(f"Falling back to standard scraping method for {library_url}")
-            except ValueError as e:
-                logger.error(f"Value error using scrape_deepwiki for {library_url}: {e}")
-                logger.info(f"Falling back to standard scraping method for {library_url}")
             except Exception as e:
-                logger.error(f"Unexpected error using scrape_deepwiki for {library_url}: {e}")
+                logger.error(f"Error using scrape_deepwiki for {library_url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
                 logger.info(f"Falling back to standard scraping method for {library_url}")
@@ -487,14 +479,7 @@ class DeepwikiScraper:
                 self.save_markdown(library_name, library_name, markdown, url_path)
 
                 # Fix markdown links in the output directory
-                try:
-                    md_directory = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, url_path, "md")
-                    logger.info(f"Fixing markdown links in {md_directory}")
-                    fix_markdown_links(md_directory)
-                except Exception as e:
-                    logger.error(f"Error fixing markdown links in {md_directory}: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
+                self.fix_markdown_links_in_directory(url_path)
             return
 
         # Process each navigation item
@@ -526,8 +511,17 @@ class DeepwikiScraper:
             self.save_markdown(library_name, title, markdown, url_path)
 
         # After all navigation items are processed, fix markdown links in the output directory
+        self.fix_markdown_links_in_directory(url_path)
+
+    def fix_markdown_links_in_directory(self, path):
+        """
+        Fix markdown links in the specified directory.
+
+        Args:
+            path (str): The path to use for the directory structure.
+        """
         try:
-            md_directory = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, url_path, "md")
+            md_directory = self.construct_dir_path(path)
             logger.info(f"Fixing markdown links in {md_directory}")
             fix_markdown_links(md_directory)
         except Exception as e:

@@ -54,18 +54,10 @@ def scrape_deepwiki(url, debug=False):
 
     # 簡略化したヘッダーを使用（必要最小限）
     headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
         "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
         "Referer": f"{parsed_url.scheme}://{domain}/{referer_path}",
-        "Sec-Ch-Ua": "\"Google Chrome\";v=\"135\", \"Not-A.Brand\";v=\"8\", \"Chromium\";v=\"135\"",
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": "\"Windows\"",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-User": "?1",
         "Upgrade-Insecure-Requests": "1"
     }
 
@@ -193,7 +185,7 @@ class DirectDeepwikiScraper:
 
         return markdown_content, html_content
 
-    def save_markdown(self, markdown_content, library_name, page_path, save_html=False, html_content=None):
+    def save_markdown(self, markdown_content, library_name, page_path, html_content=None):
         """
         Markdownコンテンツをファイルに保存する
 
@@ -201,8 +193,7 @@ class DirectDeepwikiScraper:
             markdown_content (str): 保存するMarkdownコンテンツ
             library_name (str): ライブラリ名
             page_path (str): ページのパス
-            save_html (bool): HTMLも保存するかどうか
-            html_content (str): 保存するHTMLコンテンツ
+            html_content (str): 保存するHTMLコンテンツ。指定された場合はHTMLも保存する
 
         Returns:
             str: 保存したファイルのパス
@@ -228,7 +219,7 @@ class DirectDeepwikiScraper:
             f.write(markdown_content)
 
         # HTMLも保存する場合
-        if save_html and html_content:
+        if html_content:
             html_output_path = os.path.join(self.output_dir, library_name, 'html')
             os.makedirs(html_output_path, exist_ok=True)
             html_file_path = os.path.join(html_output_path, f"{filename}.html")
@@ -237,14 +228,13 @@ class DirectDeepwikiScraper:
 
         return md_file_path
 
-    def scrape_page(self, url, library_name, save_html=True, debug=False):
+    def scrape_page(self, url, library_name, debug=False):
         """
         指定されたURLのページをスクレイピングし、Markdownに変換して保存する
 
         Args:
             url (str): スクレイピングするURL
             library_name (str): ライブラリ名
-            save_html (bool): HTMLも保存するかどうか
             debug (bool): デバッグモードを有効にするかどうか
 
         Returns:
@@ -303,7 +293,7 @@ class DirectDeepwikiScraper:
                 return None
 
             # ファイルに保存
-            return self.save_markdown(markdown_content, library_name, page_path, save_html, html_content)
+            return self.save_markdown(markdown_content, library_name, page_path, html_content=html_content)
 
         except Exception as e:
             logger.error(f"ページのスクレイピングに失敗しました: {url} ({e})")
@@ -347,14 +337,13 @@ class DirectDeepwikiScraper:
         logger.info(f"抽出されたナビゲーション項目数: {len(nav_items)}")
         return nav_items
 
-    def scrape_library(self, library_url, library_name, save_html=True):
+    def scrape_library(self, library_url, library_name):
         """
         指定されたライブラリのページをスクレイピングする
 
         Args:
             library_url (str): ライブラリのURL
             library_name (str): ライブラリ名
-            save_html (bool): HTMLも保存するかどうか
 
         Returns:
             list: 保存したMarkdownファイルのパスのリスト
@@ -362,7 +351,7 @@ class DirectDeepwikiScraper:
         logger.info(f"ライブラリのスクレイピングを開始: {library_name} ({library_url})")
 
         # まずメインページをスクレイピング
-        main_page_path = self.scrape_page(library_url, library_name, save_html)
+        main_page_path = self.scrape_page(library_url, library_name)
         if not main_page_path:
             logger.error(f"メインページのスクレイピングに失敗しました: {library_url}")
             return []
@@ -397,7 +386,7 @@ class DirectDeepwikiScraper:
                 time.sleep(1)
 
                 # ページをスクレイピング
-                page_path = self.scrape_page(url, library_name, save_html)
+                page_path = self.scrape_page(url, library_name)
                 if page_path:
                     md_files.append(page_path)
                 else:
