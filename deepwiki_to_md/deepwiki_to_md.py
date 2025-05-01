@@ -200,7 +200,7 @@ class DeepwikiScraper:
 
         # Use requests to fetch the page
         retries = 0
-        while retries <= max_retries:
+        while retries < max_retries:  # Changed from <= to < to avoid potential infinite loop
             try:
                 logger.info(f"Fetching {url} with requests")
                 response = self.session.get(url, timeout=10)
@@ -208,13 +208,13 @@ class DeepwikiScraper:
                 return response.text
             except requests.exceptions.RequestException as e:
                 retries += 1
-                if retries > max_retries:
+                if retries >= max_retries:  # Changed from > to >= for clarity
                     logger.error(f"Error fetching {url} after {max_retries} retries: {e}")
                     return None
 
                 # Calculate exponential backoff delay with jitter
                 delay = base_delay * (2 ** (retries - 1))
-                delay += random.uniform(0, 0.2)  # Add jitter
+                delay += random.uniform(0, 0.5)  # Increased jitter range for better randomization
                 logger.warning(f"Retry {retries}/{max_retries} for {url} after {delay:.2f}s delay. Error: {e}")
                 time.sleep(delay)
 
@@ -259,13 +259,14 @@ class DeepwikiScraper:
 
         return nav_items
 
-    def extract_content(self, html_content, url):
+    def extract_content(self, html_content, url, library_name=None):
         """
         ページからメインコンテンツを抽出します。
 
         Args:
             html_content (str): ページのHTMLコンテンツ。
             url (str): コンテンツを抽出するページのURL。
+            library_name (str, optional): ライブラリの名前。エラーログに含めるために使用されます。
 
         Returns:
             BeautifulSoup.Tag | str: ページのメインコンテンツ要素、または見つからない場合は空文字列。
@@ -309,8 +310,11 @@ class DeepwikiScraper:
                     main_content = body
 
         if not main_content or len(main_content.get_text(strip=True)) == 0:
-            # ここで url 引数が利用可能になる
-            logger.warning(f"URLのメインコンテンツ要素が見つかりません: {url}")
+            # ここで url 引数と library_name 引数が利用可能になる
+            if library_name:
+                logger.warning(f"URLのメインコンテンツ要素が見つかりません: {url} (ライブラリ: {library_name})")
+            else:
+                logger.warning(f"URLのメインコンテンツ要素が見つかりません: {url}")
             return ""
 
         return main_content
@@ -373,7 +377,7 @@ class DeepwikiScraper:
             dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, path, "md")
         else:
             # Fallback to the old behavior
-            dir_path = os.path.join(os.getcwd(), self.output_dir, library_name, "md")
+            dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, library_name, "md")
         os.makedirs(dir_path, exist_ok=True)
 
         # Sanitize the title to create a valid filename
@@ -396,15 +400,30 @@ class DeepwikiScraper:
 
         # Fix markdown links in the file immediately after saving
         try:
+            # Try absolute import first
             from deepwiki_to_md.fix_markdown_links import fix_markdown_links_in_file
-            fix_markdown_links_in_file(file_path)
         except ImportError:
             try:
+                # If absolute import fails, try relative import
                 from .fix_markdown_links import fix_markdown_links_in_file
-                fix_markdown_links_in_file(file_path)
             except ImportError:
+                # If both imports fail, log error and continue
                 logger.error("Could not import fix_markdown_links_in_file function")
                 logger.debug(f"Unable to fix links in {file_path}")
+            else:
+                # If relative import succeeds, call the function
+                try:
+                    fix_markdown_links_in_file(file_path)
+                    logger.debug(f"Fixed links in {file_path} using relative import")
+                except Exception as e:
+                    logger.error(f"Error fixing links in {file_path}: {e}")
+        else:
+            # If absolute import succeeds, call the function
+            try:
+                fix_markdown_links_in_file(file_path)
+                logger.debug(f"Fixed links in {file_path} using absolute import")
+            except Exception as e:
+                logger.error(f"Error fixing links in {file_path}: {e}")
 
     def scrape_library(self, library_name, library_url):
         """
@@ -471,14 +490,14 @@ class DeepwikiScraper:
                     # Parse the response content
                     direct_html_content = response.text
                     # Extract the main content
-                    main_content = self.extract_content(direct_html_content, library_url)
+                    main_content = self.extract_content(direct_html_content, library_url, library_name)
                     if main_content:
                         markdown = self.html_to_markdown(main_content)
                         self.save_markdown(library_name, library_name, markdown, url_path)
 
                         # Fix markdown links in the output directory
                         try:
-                            md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                            md_directory = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, url_path, "md")
                             logger.info(f"Fixing markdown links in {md_directory}")
                             fix_markdown_links(md_directory)
                         except Exception as e:
@@ -490,8 +509,20 @@ class DeepwikiScraper:
                         logger.warning(f"No main content found in response from scrape_deepwiki for {library_url}")
                 else:
                     logger.error(f"Failed to fetch content with scrape_deepwiki for {library_url}")
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"Connection error using scrape_deepwiki for {library_url}: {e}")
+                logger.info(f"Falling back to standard scraping method for {library_url}")
+            except requests.exceptions.Timeout as e:
+                logger.error(f"Timeout error using scrape_deepwiki for {library_url}: {e}")
+                logger.info(f"Falling back to standard scraping method for {library_url}")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request error using scrape_deepwiki for {library_url}: {e}")
+                logger.info(f"Falling back to standard scraping method for {library_url}")
+            except ValueError as e:
+                logger.error(f"Value error using scrape_deepwiki for {library_url}: {e}")
+                logger.info(f"Falling back to standard scraping method for {library_url}")
             except Exception as e:
-                logger.error(f"Error using scrape_deepwiki for {library_url}: {e}")
+                logger.error(f"Unexpected error using scrape_deepwiki for {library_url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
                 logger.info(f"Falling back to standard scraping method for {library_url}")
@@ -510,14 +541,14 @@ class DeepwikiScraper:
             logger.warning(f"No navigation items found for {library_name}")
 
             # If no navigation items and direct_scraper.py already failed, use the original method
-            main_content = self.extract_content(html_content, library_url)
+            main_content = self.extract_content(html_content, library_url, library_name)
             if main_content:
                 markdown = self.html_to_markdown(main_content)
                 self.save_markdown(library_name, library_name, markdown, url_path)
 
                 # Fix markdown links in the output directory
                 try:
-                    md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                    md_directory = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, url_path, "md")
                     logger.info(f"Fixing markdown links in {md_directory}")
                     fix_markdown_links(md_directory)
                 except Exception as e:
@@ -543,7 +574,7 @@ class DeepwikiScraper:
                 continue
 
             # Extract the main content
-            main_content = self.extract_content(page_html, url)
+            main_content = self.extract_content(page_html, url, library_name)
             if not main_content:
                 logger.warning(f"No main content found for {title}")
                 continue
@@ -556,7 +587,7 @@ class DeepwikiScraper:
 
         # After all navigation items are processed, fix markdown links in the output directory
         try:
-            md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+            md_directory = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, url_path, "md")
             logger.info(f"Fixing markdown links in {md_directory}")
             fix_markdown_links(md_directory)
         except Exception as e:
