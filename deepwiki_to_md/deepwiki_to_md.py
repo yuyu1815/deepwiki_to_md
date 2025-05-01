@@ -152,7 +152,12 @@ class DeepwikiScraper:
 
         # Use requests to fetch the page
         retries = 0
-        while retries < max_retries and max_retries >= 0:  # Ensure max_retries is non-negative
+        # max_retriesが負の値の場合は0に設定
+        if max_retries < 0:
+            logger.warning(f"max_retriesが負の値({max_retries})です。0に設定します。")
+            max_retries = 0
+
+        while retries < max_retries:
             try:
                 logger.info(f"Fetching {url} with requests")
                 response = self.session.get(url, timeout=10)
@@ -160,7 +165,7 @@ class DeepwikiScraper:
                 return response.text
             except requests.exceptions.RequestException as e:
                 retries += 1
-                if retries >= max_retries:  # Changed from > to >= for clarity
+                if retries >= max_retries:
                     logger.error(f"Error fetching {url} after {max_retries} retries: {e}")
                     return None
 
@@ -317,7 +322,7 @@ class DeepwikiScraper:
 
         Args:
             path (str, optional): The path to use for the directory structure. If None, only library_name is used.
-            library_name (str, optional): The name of the library. Required if path is None.
+            library_name (str, optional): The name of the library. If None when path is None, 'default' will be used.
 
         Returns:
             str: The constructed directory path.
@@ -328,7 +333,8 @@ class DeepwikiScraper:
         else:
             # Fallback to the old behavior
             if not library_name:
-                raise ValueError("library_name must be provided when path is None")
+                logger.warning("library_name が指定されていません。'default'を使用します。")
+                library_name = "default"
             dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, library_name, "md")
         return dir_path
 
