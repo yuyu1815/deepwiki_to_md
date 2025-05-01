@@ -6,23 +6,35 @@ from urllib.parse import urlparse, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-# Import fix_markdown_links function
+# Import markdown link fixing functions
 try:
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+    # Try absolute imports first
+    from deepwiki_to_md.fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
 except ImportError:
-    # If the module import fails, try relative import
+    # If absolute imports fail, try relative imports
     try:
-        from .fix_markdown_links import fix_markdown_links
-    except ImportError:
+        from .fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
+    except ImportError as e:
+        # Configure logging first to avoid undefined logger
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
         logger = logging.getLogger(__name__)
-        logger.error("Could not import fix_markdown_links module")
+        logger.error(f"Failed to import markdown link fixing modules: {e}")
 
 
-        # Define a dummy function that does nothing if import fails
+        # Define dummy implementations for missing functions
         def fix_markdown_links(directory):
-            logger = logging.getLogger(__name__)
-            logger.error("fix_markdown_links module not available")
+            logger.error(
+                f"fix_markdown_links called but module is not available - links in {directory} will not be fixed")
             return
+
+
+        def fix_markdown_links_in_file(file_path):
+            logger.error(
+                f"fix_markdown_links_in_file called but module is not available - links in {file_path} will not be fixed")
+            return 0
 
 # Configure logging
 logging.basicConfig(
@@ -174,6 +186,13 @@ class DirectMarkdownScraper:
         md_file_path = os.path.join(output_path, f"{filename}.md")
         with open(md_file_path, 'w', encoding='utf-8') as f:
             f.write(cleaned_content)
+
+        # ファイル保存直後にMarkdownリンクを修正
+        try:
+            fix_markdown_links_in_file(md_file_path)
+            logger.debug(f"Fixed links in {md_file_path}")
+        except Exception as e:
+            logger.error(f"Error fixing links in {md_file_path}: {e}")
 
         return md_file_path
 

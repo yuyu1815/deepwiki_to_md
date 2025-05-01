@@ -10,53 +10,44 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
-# Import DirectDeepwikiScraper
+# Import scraping modules
 try:
-    from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper
-except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .direct_scraper import DirectDeepwikiScraper
-    except ImportError:
-        logging.error("Could not import DirectDeepwikiScraper module")
-        # Define a dummy class that does nothing if import fails
-        class DirectDeepwikiScraper:
-            def __init__(self, *args, **kwargs):
-                pass
-            def scrape_page(self, *args, **kwargs):
-                return None
-
-# Import scrape_deepwiki from direct_scraper.py
-try:
-    from deepwiki_to_md.direct_scraper import scrape_deepwiki
-except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .direct_scraper import scrape_deepwiki
-    except ImportError:
-        logging.error("Could not import scrape_deepwiki function from direct_scraper.py")
-        # Define a dummy function that does nothing if import fails
-        def scrape_deepwiki(url):
-            logging.error("scrape_deepwiki function not available")
-            return None
-
-# Import DirectMarkdownScraper
-try:
+    # Try absolute imports first
+    from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper, scrape_deepwiki
     from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper
 except ImportError:
-    # If the module import fails, try relative import
+    # If absolute imports fail, try relative imports
     try:
+        from .direct_scraper import DirectDeepwikiScraper, scrape_deepwiki
         from .direct_md_scraper import DirectMarkdownScraper
-    except ImportError:
-        logging.error("Could not import DirectMarkdownScraper module")
+    except ImportError as e:
+        logging.error(f"Failed to import direct scraping modules: {e}")
 
 
-        # Define a dummy class that does nothing if import fails
+        # Define dummy implementations for missing modules
+        class DirectDeepwikiScraper:
+            def __init__(self, *args, **kwargs):
+                logging.warning("DirectDeepwikiScraper is not available - direct scraping will be disabled")
+                pass
+            def scrape_page(self, *args, **kwargs):
+                logging.error("DirectDeepwikiScraper.scrape_page called but module is not available")
+                return None
+
+
+        def scrape_deepwiki(url, **kwargs):
+            logging.error("scrape_deepwiki function called but not available")
+            return None
+
         class DirectMarkdownScraper:
             def __init__(self, *args, **kwargs):
+                logging.warning("DirectMarkdownScraper is not available - direct markdown scraping will be disabled")
                 pass
-
             def scrape_page(self, *args, **kwargs):
+                logging.error("DirectMarkdownScraper.scrape_page called but module is not available")
+                return None
+
+            def scrape_library(self, *args, **kwargs):
+                logging.error("DirectMarkdownScraper.scrape_library called but module is not available")
                 return None
 
 
@@ -68,44 +59,54 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Import fix_markdown_links function
+# Import markdown link fixing functions
 try:
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+    # Try absolute imports first
+    from deepwiki_to_md.fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
 except ImportError:
-    # If the module import fails, try relative import
+    # If absolute imports fail, try relative imports
     try:
-        from .fix_markdown_links import fix_markdown_links
-    except ImportError:
-        logger.error("Could not import fix_markdown_links module")
-        # Define a dummy function that does nothing if import fails
+        from .fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
+    except ImportError as e:
+        logger.error(f"Failed to import markdown link fixing modules: {e}")
+
+
+        # Define dummy implementations for missing functions
         def fix_markdown_links(directory):
-            logger.error("fix_markdown_links module not available")
+            logger.error(
+                f"fix_markdown_links called but module is not available - links in {directory} will not be fixed")
             return
 
 
+        def fix_markdown_links_in_file(file_path):
+            logger.error(
+                f"fix_markdown_links_in_file called but module is not available - links in {file_path} will not be fixed")
+            return 0
+
+
 class DeepwikiScraper:
-    def __init__(self, output_dir="Documents", use_direct_scraper=False, use_alternative_scraper=False):
+    def __init__(self, output_dir="Documents", use_direct_scraper=False, use_alternative_scraper=False,
+                 use_direct_md_scraper=True):
         """
         Initialize the DeepwikiScraper.
 
         Args:
             output_dir (str): The base directory to save the converted Markdown files.
             use_direct_scraper (bool): Whether to use DirectDeepwikiScraper for scraping.
-            use_alternative_scraper (bool): Whether to use scrape_deepwiki from direct_scraper.py for scraping. When True, this method is prioritized. Default is True.
-            use_direct_md_scraper (bool): Whether to use DirectMarkdownScraper for direct Markdown scraping. When True, this method is prioritized over all others. Default is False.
+            use_alternative_scraper (bool): Whether to use scrape_deepwiki from direct_scraper.py for scraping.
+            use_direct_md_scraper (bool): Whether to use DirectMarkdownScraper for direct Markdown scraping. Default is True.
+
+        Note:
+            Scraper priority (highest to lowest):
+            1. DirectMarkdownScraper (if use_direct_md_scraper is True)
+            2. scrape_deepwiki from direct_scraper.py (if use_alternative_scraper is True)
+            3. DirectDeepwikiScraper (if use_direct_scraper is True)
+            4. Standard scraping method (fallback)
         """
-        if use_direct_scraper:
-            self.use_direct_scraper = True
-            self.use_alternative_scraper = False
-            self.use_direct_md_scraper = False
-        elif use_alternative_scraper:
-            self.use_direct_scraper = False
-            self.use_alternative_scraper = True
-            self.use_direct_md_scraper = False
-        else:
-            self.use_direct_scraper = False
-            self.use_alternative_scraper = False
-            self.use_direct_md_scraper = True
+        # Set scraper flags based on parameters
+        self.use_direct_md_scraper = use_direct_md_scraper
+        self.use_alternative_scraper = use_alternative_scraper and not self.use_direct_md_scraper
+        self.use_direct_scraper = use_direct_scraper and not self.use_direct_md_scraper
         self.output_dir = output_dir
 
         # Initialize DirectMarkdownScraper (highest priority)
@@ -378,21 +379,16 @@ class DeepwikiScraper:
         logger.info(f"Saved {file_path}")
 
         # Fix markdown links in the file immediately after saving
-        # Use a regular expression to replace links with URLs with links with empty parentheses
-        link_pattern = re.compile(r'\[([^\]]+)\]\((?![\s\)])[^\)]+\)')
-
-        # Read the file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        # Replace links with URLs with links with empty parentheses
-        modified_content = link_pattern.sub(r'[\1]()', content)
-
-        # Write the modified content back to the file
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(modified_content)
-
-        logger.debug(f"Fixed links in {file_path}")
+        try:
+            from deepwiki_to_md.fix_markdown_links import fix_markdown_links_in_file
+            fix_markdown_links_in_file(file_path)
+        except ImportError:
+            try:
+                from .fix_markdown_links import fix_markdown_links_in_file
+                fix_markdown_links_in_file(file_path)
+            except ImportError:
+                logger.error("Could not import fix_markdown_links_in_file function")
+                logger.debug(f"Unable to fix links in {file_path}")
 
     def scrape_library(self, library_name, library_url):
         """
