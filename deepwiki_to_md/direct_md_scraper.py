@@ -6,42 +6,44 @@ from urllib.parse import urlparse, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-# Import markdown link fixing functions
-try:
-    # Try absolute imports first
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
-except ImportError:
-    # If absolute imports fail, try relative imports
-    try:
-        from .fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
-    except ImportError as e:
-        # Configure logging first to avoid undefined logger
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
-        logger = logging.getLogger(__name__)
-        logger.error(f"Failed to import markdown link fixing modules: {e}")
-
-
-        # Define dummy implementations for missing functions
-        def fix_markdown_links(directory):
-            logger.error(
-                f"fix_markdown_links called but module is not available - links in {directory} will not be fixed")
-            return
-
-
-        def fix_markdown_links_in_file(file_path):
-            logger.error(
-                f"fix_markdown_links_in_file called but module is not available - links in {file_path} will not be fixed")
-            return 0
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Import utility functions for handling imports
+try:
+    # Try absolute import first
+    from deepwiki_to_md.import_utils import import_markdown_link_fixing_modules
+except ImportError:
+    # If absolute import fails, try relative import
+    try:
+        from .import_utils import import_markdown_link_fixing_modules
+    except ImportError as e:
+        logger.error(f"Failed to import import_utils module: {e}")
+
+
+        # Define minimal version of the import function if import_utils is not available
+        def import_markdown_link_fixing_modules():
+            logger.error("import_markdown_link_fixing_modules called but import_utils module is not available")
+
+            # Define dummy implementations for missing functions
+            def dummy_fix_markdown_links(directory):
+                logger.error(
+                    f"fix_markdown_links called but module is not available - links in {directory} will not be fixed")
+                return
+
+            def dummy_fix_markdown_links_in_file(file_path):
+                logger.error(
+                    f"fix_markdown_links_in_file called but module is not available - links in {file_path} will not be fixed")
+                return 0
+
+            return dummy_fix_markdown_links, dummy_fix_markdown_links_in_file
+
+# Import markdown link fixing functions
+fix_markdown_links, fix_markdown_links_in_file = import_markdown_link_fixing_modules()
 
 
 def scrape_deepwiki(url):

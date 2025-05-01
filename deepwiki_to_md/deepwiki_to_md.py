@@ -10,54 +10,6 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
-# Import scraping modules
-try:
-    # Try absolute imports first
-    from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper, scrape_deepwiki
-    from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper
-except ImportError:
-    # If absolute imports fail, try relative imports
-    try:
-        from .direct_scraper import DirectDeepwikiScraper, scrape_deepwiki
-        from .direct_md_scraper import DirectMarkdownScraper
-    except ImportError as e:
-        logging.error(f"Failed to import direct scraping modules: {e}")
-
-
-        # Define dummy implementations for missing modules
-        class DummyDirectDeepwikiScraper:
-            def __init__(self, *args, **kwargs):
-                logging.warning("DirectDeepwikiScraper is not available - direct scraping will be disabled")
-                pass
-            def scrape_page(self, *args, **kwargs):
-                logging.error("DirectDeepwikiScraper.scrape_page called but module is not available")
-                return None
-
-
-        def dummy_scrape_deepwiki(url, **kwargs):
-            logging.error("scrape_deepwiki function called but not available")
-            return None
-
-
-        # Use the dummy class names for the actual imports
-        DirectDeepwikiScraper = DummyDirectDeepwikiScraper
-        scrape_deepwiki = dummy_scrape_deepwiki
-
-
-        class DummyDirectMarkdownScraper:
-            def __init__(self, *args, **kwargs):
-                logging.warning("DirectMarkdownScraper is not available - direct markdown scraping will be disabled")
-                pass
-            def scrape_page(self, *args, **kwargs):
-                logging.error("DirectMarkdownScraper.scrape_page called but module is not available")
-                return None
-
-            def scrape_library(self, *args, **kwargs):
-                logging.error("DirectMarkdownScraper.scrape_library called but module is not available")
-                return None
-
-
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -65,29 +17,33 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Import markdown link fixing functions
+# Import utility functions for handling imports
 try:
-    # Try absolute imports first
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
+    # Try absolute import first
+    from deepwiki_to_md.import_utils import import_scraping_modules, import_markdown_link_fixing_modules
 except ImportError:
-    # If absolute imports fail, try relative imports
+    # If absolute import fails, try relative import
     try:
-        from .fix_markdown_links import fix_markdown_links, fix_markdown_links_in_file
+        from .import_utils import import_scraping_modules, import_markdown_link_fixing_modules
     except ImportError as e:
-        logger.error(f"Failed to import markdown link fixing modules: {e}")
+        logger.error(f"Failed to import import_utils module: {e}")
 
 
-        # Define dummy implementations for missing functions
-        def fix_markdown_links(directory):
-            logger.error(
-                f"fix_markdown_links called but module is not available - links in {directory} will not be fixed")
-            return
+        # Define minimal versions of the import functions if import_utils is not available
+        def import_scraping_modules():
+            logger.error("import_scraping_modules called but import_utils module is not available")
+            return None, None, None
 
 
-        def fix_markdown_links_in_file(file_path):
-            logger.error(
-                f"fix_markdown_links_in_file called but module is not available - links in {file_path} will not be fixed")
-            return 0
+        def import_markdown_link_fixing_modules():
+            logger.error("import_markdown_link_fixing_modules called but import_utils module is not available")
+            return None, None
+
+# Import scraping modules
+DirectDeepwikiScraper, scrape_deepwiki, DirectMarkdownScraper = import_scraping_modules()
+
+# Import markdown link fixing functions
+fix_markdown_links, fix_markdown_links_in_file = import_markdown_link_fixing_modules()
 
 
 class DeepwikiScraper:
@@ -400,30 +356,10 @@ class DeepwikiScraper:
 
         # Fix markdown links in the file immediately after saving
         try:
-            # Try absolute import first
-            from deepwiki_to_md.fix_markdown_links import fix_markdown_links_in_file
-        except ImportError:
-            try:
-                # If absolute import fails, try relative import
-                from .fix_markdown_links import fix_markdown_links_in_file
-            except ImportError:
-                # If both imports fail, log error and continue
-                logger.error("Could not import fix_markdown_links_in_file function")
-                logger.debug(f"Unable to fix links in {file_path}")
-            else:
-                # If relative import succeeds, call the function
-                try:
-                    fix_markdown_links_in_file(file_path)
-                    logger.debug(f"Fixed links in {file_path} using relative import")
-                except Exception as e:
-                    logger.error(f"Error fixing links in {file_path}: {e}")
-        else:
-            # If absolute import succeeds, call the function
-            try:
-                fix_markdown_links_in_file(file_path)
-                logger.debug(f"Fixed links in {file_path} using absolute import")
-            except Exception as e:
-                logger.error(f"Error fixing links in {file_path}: {e}")
+            fix_markdown_links_in_file(file_path)
+            logger.debug(f"Fixed links in {file_path}")
+        except Exception as e:
+            logger.error(f"Error fixing links in {file_path}: {e}")
 
     def scrape_library(self, library_name, library_url):
         """
