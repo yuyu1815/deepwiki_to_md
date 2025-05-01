@@ -173,8 +173,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
+#作業中ファイル
+*~
 *.md
 !README.md
 !README_ja.md
 !.junie/guidelines.md
+# AIによる自動生成 ファイル
+test_*.py

@@ -431,6 +431,9 @@ class DeepwikiScraper:
         else:
             url_path = full_path
 
+        # Use library_name for the folder name if it's provided, otherwise use url_path
+        folder_path = library_name if library_name else url_path
+
         # Prioritize using DirectMarkdownScraper (highest priority)
         if self.use_direct_md_scraper:
             logger.info(f"Prioritizing DirectMarkdownScraper for {library_url}")
@@ -462,10 +465,10 @@ class DeepwikiScraper:
                     main_content = self.extract_content(direct_html_content, library_url)
                     if main_content:
                         markdown = self.html_to_markdown(main_content)
-                        self.save_markdown(library_name, library_name, markdown, url_path)
+                        self.save_markdown(library_name, library_name, markdown, folder_path)
 
                         # Fix markdown links in the output directory
-                        md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                        md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
                         logger.info(f"Fixing markdown links in {md_directory}")
                         fix_markdown_links(md_directory)
                         return
@@ -496,10 +499,10 @@ class DeepwikiScraper:
             main_content = self.extract_content(html_content, library_url)
             if main_content:
                 markdown = self.html_to_markdown(main_content)
-                self.save_markdown(library_name, library_name, markdown, url_path)
+                self.save_markdown(library_name, library_name, markdown, folder_path)
 
                 # Fix markdown links in the output directory
-                md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
                 logger.info(f"Fixing markdown links in {md_directory}")
                 fix_markdown_links(md_directory)
             return
@@ -530,10 +533,10 @@ class DeepwikiScraper:
             markdown = self.html_to_markdown(main_content)
 
             # Save the Markdown content
-            self.save_markdown(library_name, title, markdown, url_path)
+            self.save_markdown(library_name, title, markdown, folder_path)
 
         # After all navigation items are processed, fix markdown links in the output directory
-        md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+        md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
         logger.info(f"Fixing markdown links in {md_directory}")
         fix_markdown_links(md_directory)
 

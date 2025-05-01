@@ -107,10 +107,13 @@ class DirectMarkdownScraper:
             output_dir (str): The base directory to save the Markdown files.
         """
         self.output_dir = output_dir
+        # Dictionary to store the content hash of saved files to avoid duplicates
+        self.saved_content_hash = None
 
     def save_markdown(self, content, library_name, page_path):
         """
         Markdownコンテンツをファイルに保存する
+        見出し(##)ごとに別々のファイルに分割して保存する
 
         Args:
             content (str): 保存するMarkdownコンテンツ
@@ -118,24 +121,32 @@ class DirectMarkdownScraper:
             page_path (str): ページのパス
 
         Returns:
-            str: 保存したファイルのパス
+            list: 保存したファイルのパスのリスト
         """
-        # URLパスから適切な部分を取得
-        path_parts = page_path.strip('/').split('/')
-
-        # URLが複数のパス部分を持つ場合（例：python/cpython/1-overview）
-        if len(path_parts) > 2:
-            # 2番目に最後の部分を使用（例：cpython）
-            dir_path_part = path_parts[-2]
+        # ライブラリ名が指定されている場合はそれを使用し、そうでない場合はURLパスから取得
+        if library_name:
+            dir_path_part = library_name
         else:
-            # それ以外の場合は最後の部分を使用
-            dir_path_part = path_parts[-1] if path_parts else 'index'
+            # URLパスから適切な部分を取得
+            path_parts = page_path.strip('/').split('/')
+
+            # URLが複数のパス部分を持つ場合（例：python/cpython/1-overview）
+            if len(path_parts) > 2:
+                # 2番目に最後の部分を使用（例：cpython）
+                dir_path_part = path_parts[-2]
+            else:
+                # それ以外の場合は最後の部分を使用
+                dir_path_part = path_parts[-1] if path_parts else 'index'
 
         # ファイル名用に最後の部分を保持
         last_path_part = path_parts[-1] if path_parts else 'index'
 
-        # 出力ディレクトリを作成
-        output_path = os.path.join(self.output_dir, dir_path_part, 'md')
+        # ライブラリディレクトリを作成
+        library_dir = os.path.join(self.output_dir, dir_path_part)
+        os.makedirs(library_dir, exist_ok=True)
+
+        # 分割ファイル用のmdディレクトリを作成
+        output_path = os.path.join(library_dir, 'md')
         os.makedirs(output_path, exist_ok=True)
 
         # ファイル名を作成
@@ -170,12 +181,112 @@ class DirectMarkdownScraper:
                 cleaned_content = '\n'.join(lines[28:])
                 logger.info(f"最初の28行を削除しました: {filename}.md")
 
-        # Markdownファイルを保存
-        md_file_path = os.path.join(output_path, f"{filename}.md")
-        with open(md_file_path, 'w', encoding='utf-8') as f:
-            f.write(cleaned_content)
+        # コンテンツのハッシュを計算
+        import hashlib
+        content_hash = hashlib.md5(cleaned_content.encode('utf-8')).hexdigest()
 
-        return md_file_path
+        # 既に同じ内容のファイルが保存されているか確認
+        if self.saved_content_hash is not None and self.saved_content_hash == content_hash:
+            logger.info(f"同じ内容のファイルが既に保存されているため、{filename}.mdの保存をスキップします")
+            # 既に保存されているファイルのパスを返す（元のファイルとmd/内のファイル）
+            return [
+                os.path.join(library_dir, f"{filename}.md"),
+                os.path.join(output_path, f"{filename}.md")
+            ]
+
+        # 新しいハッシュを保存
+        self.saved_content_hash = content_hash
+
+        # 保存したファイルのパスのリスト
+        saved_files = []
+
+        # 元のファイルをライブラリディレクトリに保存
+        original_file_path = os.path.join(library_dir, f"{filename}.md")
+        with open(original_file_path, 'w', encoding='utf-8') as f:
+            f.write(cleaned_content)
+        logger.info(f"元のコンテンツを保存しました: {original_file_path}")
+        saved_files.append(original_file_path)
+
+        # 見出し(##)でコンテンツを分割
+        sections = self._split_by_headings(cleaned_content)
+
+        # 見出しごとにファイルを保存
+        if not sections:
+            # 見出しがない場合は元のファイル名で保存
+            md_file_path = os.path.join(output_path, f"{filename}.md")
+            with open(md_file_path, 'w', encoding='utf-8') as f:
+                f.write(cleaned_content)
+            logger.info(f"新しいコンテンツを保存しました: {filename}.md")
+            saved_files.append(md_file_path)
+        else:
+            for heading, section_content in sections:
+                if heading:
+                    # 見出しからファイル名を作成
+                    section_filename = heading.strip()
+                    # 空白を_に置換
+                    section_filename = re.sub(r'\s+', '_', section_filename)
+                    # 無効な文字を置換 (Windows のファイル名に使えない文字に加え、特殊文字も置換)
+                    section_filename = re.sub(r'[<>:"/\\|?*&^%$#@!+={}\[\];,.]', '_', section_filename)
+                else:
+                    # 見出しがない場合（最初のセクションなど）は元のファイル名を使用
+                    section_filename = filename
+
+                # ファイルを保存
+                section_file_path = os.path.join(output_path, f"{section_filename}.md")
+                with open(section_file_path, 'w', encoding='utf-8') as f:
+                    f.write(section_content)
+                logger.info(f"セクションを保存しました: {section_filename}.md")
+                saved_files.append(section_file_path)
+
+        return saved_files
+
+    def _split_by_headings(self, content):
+        """
+        Markdownコンテンツを見出し(##)ごとに分割する
+
+        Args:
+            content (str): 分割するMarkdownコンテンツ
+
+        Returns:
+            list: (見出し, コンテンツ)のタプルのリスト
+        """
+        if not content:
+            return []
+
+        # 見出し(##)を検索するための正規表現
+        heading_pattern = re.compile(r'^##\s+(.+)$', re.MULTILINE)
+
+        # 見出しの位置を取得
+        headings = list(heading_pattern.finditer(content))
+
+        if not headings:
+            # 見出しがない場合は空のリストを返す
+            return []
+
+        sections = []
+
+        # 最初の見出しの前のコンテンツを取得
+        if headings[0].start() > 0:
+            intro_content = content[:headings[0].start()].strip()
+            if intro_content:
+                sections.append((None, intro_content))
+
+        # 各見出しごとにセクションを作成
+        for i, match in enumerate(headings):
+            heading_text = match.group(1)
+            start_pos = match.start()
+
+            # 次の見出しがある場合はその位置まで、ない場合は最後まで
+            if i < len(headings) - 1:
+                end_pos = headings[i + 1].start()
+            else:
+                end_pos = len(content)
+
+            # セクションのコンテンツを取得
+            section_content = content[start_pos:end_pos].strip()
+            sections.append((heading_text, section_content))
+
+        return sections
 
     def scrape_page(self, url, library_name):
         """
@@ -186,7 +297,7 @@ class DirectMarkdownScraper:
             library_name (str): ライブラリ名
 
         Returns:
-            str: 保存したMarkdownファイルのパス、失敗した場合はNone
+            list: 保存したMarkdownファイルのパスのリスト、失敗した場合は空のリスト
         """
         try:
             # URLをログに出力
@@ -202,7 +313,7 @@ class DirectMarkdownScraper:
             response = scrape_deepwiki(correct_url)
             if response.status_code != 200:
                 logger.error(f"ページの取得に失敗しました: {url} (ステータスコード: {response.status_code})")
-                return None
+                return []
 
             # URLからページパスを抽出
             page_path = parsed_url.path
@@ -215,7 +326,7 @@ class DirectMarkdownScraper:
             logger.error(f"ページのスクレイピングに失敗しました: {url} ({e})")
             import traceback
             logger.error(traceback.format_exc())
-            return None
+            return []
 
     def extract_navigation_items(self, response_text, current_url):
         """
@@ -266,21 +377,25 @@ class DirectMarkdownScraper:
         """
         logger.info(f"ライブラリのスクレイピングを開始: {library_name} ({library_url})")
 
-        # URLから適切なパス部分を抽出
-        parsed_url = urlparse(library_url)
-        path_parts = parsed_url.path.strip('/').split('/')
-
-        # URLが複数のパス部分を持つ場合（例：python/cpython/1-overview）
-        if len(path_parts) > 2:
-            # 2番目に最後の部分を使用（例：cpython）
-            dir_path_part = path_parts[-2]
+        # ライブラリ名が指定されている場合はそれを使用し、そうでない場合はURLパスから取得
+        if library_name:
+            dir_path_part = library_name
         else:
-            # それ以外の場合は最後の部分を使用
-            dir_path_part = path_parts[-1] if path_parts else library_name
+            # URLから適切なパス部分を抽出
+            parsed_url = urlparse(library_url)
+            path_parts = parsed_url.path.strip('/').split('/')
+
+            # URLが複数のパス部分を持つ場合（例：python/cpython/1-overview）
+            if len(path_parts) > 2:
+                # 2番目に最後の部分を使用（例：cpython）
+                dir_path_part = path_parts[-2]
+            else:
+                # それ以外の場合は最後の部分を使用
+                dir_path_part = path_parts[-1] if path_parts else 'index'
 
         # メインページをスクレイピング
-        main_page_path = self.scrape_page(library_url, library_name)
-        if not main_page_path:
+        main_page_paths = self.scrape_page(library_url, library_name)
+        if not main_page_paths:
             logger.error(f"メインページのスクレイピングに失敗しました: {library_url}")
             return []
 
@@ -292,7 +407,7 @@ class DirectMarkdownScraper:
             })
             if response.status_code != 200:
                 logger.error(f"HTMLの取得に失敗しました: {library_url} (ステータスコード: {response.status_code})")
-                return [main_page_path]  # メインページのみ返す
+                return main_page_paths  # メインページのみ返す
 
             # ナビゲーション項目を抽出
             nav_items = self.extract_navigation_items(response.text, library_url)
@@ -303,10 +418,10 @@ class DirectMarkdownScraper:
                 md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
                 logger.info(f"Fixing markdown links in {md_directory}")
                 fix_markdown_links(md_directory)
-                return [main_page_path]  # メインページのみ返す
+                return main_page_paths  # メインページのみ返す
 
             # 保存したファイルのパスのリスト
-            md_files = [main_page_path]
+            md_files = list(main_page_paths)  # リストをコピー
 
             # 各ナビゲーション項目をスクレイピング
             for item in nav_items:
@@ -320,9 +435,9 @@ class DirectMarkdownScraper:
                 time.sleep(1)
 
                 # ページをスクレイピング
-                page_path = self.scrape_page(url, library_name)
-                if page_path:
-                    md_files.append(page_path)
+                page_paths = self.scrape_page(url, library_name)
+                if page_paths:
+                    md_files.extend(page_paths)
                 else:
                     logger.error(f"ナビゲーション項目のスクレイピングに失敗しました: {title} ({url})")
 
@@ -340,7 +455,7 @@ class DirectMarkdownScraper:
             md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
             logger.info(f"Fixing markdown links in {md_directory}")
             fix_markdown_links(md_directory)
-            return [main_page_path]  # エラーが発生した場合はメインページのみ返す
+            return main_page_paths  # エラーが発生した場合はメインページのみ返す
 
     def run(self, libraries):
         """

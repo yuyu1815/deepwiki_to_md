@@ -12,6 +12,7 @@ Deepwiki サイトからコンテンツをスクレイピングし、Markdown �
 - 変換後のファイルを整理されたディレクトリ構造で保存
 - 複数のライブラリのスクレイピングに対応
 - 静的リクエストによるスクレイピングに対応
+- 信頼性向上と直接Markdown取得のための直接スクレイピングメソッドを提供
 
 ## 必要要件
 
@@ -20,6 +21,7 @@ Deepwiki サイトからコンテンツをスクレイピングし、Markdown �
     - requests
     - beautifulsoup4
     - argparse
+  - markdownify
 
 ## インストール方法
 
@@ -81,10 +83,10 @@ from deepwiki_to_md import DeepwikiScraper
 from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper
 from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper
 
-# スクレイパーインスタンスを作成
+# スクレイパーインスタンスを作成 (デフォルトでは DirectMarkdownScraper を使用)
 scraper = DeepwikiScraper(output_dir="MyDocuments")
 
-# ライブラリをスクレイピング
+# デフォルト (DirectMarkdownScraper) を使用してライブラリをスクレイピング
 scraper.scrape_library("python", "https://deepwiki.com/python")
 
 # 別の出力ディレクトリを持つスクレイパーを作成
@@ -93,18 +95,39 @@ other_scraper = DeepwikiScraper(output_dir="OtherDocuments")
 # 別のライブラリをスクレイピング
 other_scraper.scrape_library("javascript", "https://deepwiki.example.com/javascript")
 
-# DirectDeepwikiScraper インスタンスを作成
-direct_scraper = DirectDeepwikiScraper(output_dir="DirectScraped")
+# --- DirectDeepwikiScraper (HTML から Markdown へ) を使用 ---
+# DirectDeepwikiScraper を明示的に使用するスクレイパーインスタンスを作成
+html_scraper = DeepwikiScraper(
+    output_dir="HtmlScrapedDocuments",
+    use_direct_scraper=True,  # DirectDeepwikiScraper を有効化
+    use_alternative_scraper=False,
+    use_direct_md_scraper=False
+)
+html_scraper.scrape_library("go", "https://deepwiki.com/go")
 
-# 特定のページを直接スクレイピング
-direct_scraper.scrape_page(
+# --- DirectMarkdownScraper (直接 Markdown 取得) を使用 ---
+# DirectMarkdownScraper を明示的に使用するスクレイパーインスタンスを作成
+md_scraper = DeepwikiScraper(
+    output_dir="DirectMarkdownDocuments",
+    use_direct_scraper=False,
+    use_alternative_scraper=False,
+    use_direct_md_scraper=True  # DirectMarkdownScraper を有効化 (これがデフォルト)
+)
+md_scraper.scrape_library("rust", "https://deepwiki.com/rust")
+
+# --- 個別の直接スクレイパーを使用 ---
+# DirectDeepwikiScraper インスタンスを作成 (HTML から Markdown へ)
+direct_html_scraper = DirectDeepwikiScraper(output_dir="DirectHtmlScraped")
+
+# 特定のページを直接スクレイピング (HTML から Markdown へ)
+direct_html_scraper.scrape_page(
     "https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization",
     "python_bytecode",
-    save_html=True
+    save_html=True  # オプションで元のHTMLを保存
 )
 
-# DirectMarkdownScraper インスタンスを作成（Markdownを直接取得）
-direct_md_scraper = DirectMarkdownScraper(output_dir="DirectMarkdownDocuments")
+# DirectMarkdownScraper インスタンスを作成 (直接 Markdown 取得)
+direct_md_scraper = DirectMarkdownScraper(output_dir="DirectMarkdownFetched")
 
 # 特定のページを直接Markdownとしてスクレイピング
 direct_md_scraper.scrape_page(
@@ -112,17 +135,14 @@ direct_md_scraper.scrape_page(
     "python_bytecode"
 )
 
-# DirectMarkdownScraper を有効にした DeepwikiScraper も使用可能
-md_scraper = DeepwikiScraper(
-    output_dir="DirectMarkdownDocuments",
-    use_direct_scraper=False,
-    use_alternative_scraper=False,
-    use_direct_md_scraper=True  # 直接Markdownスクレイピングを有効化
-)
-md_scraper.scrape_library("python", "https://deepwiki.com/python/cpython")
+# run メソッドを使用して複数の直接スクレイピングを実行することも可能 (DirectDeepwikiScraper 用)
+# direct_html_results = direct_html_scraper.run([
+#     {"name": "page1", "url": "url1"},
+#     {"name": "page2", "url": "url2"}
+# ])
 
-# run メソッドを使用して複数の直接スクレイピングを実行することも可能
-# direct_results = direct_scraper.run([
+# run メソッドを使用して複数の直接スクレイピングを実行することも可能 (DirectMarkdownScraper 用)
+# direct_md_results = direct_md_scraper.run([
 #     {"name": "page1", "url": "url1"},
 #     {"name": "page2", "url": "url2"}
 # ])
@@ -136,86 +156,68 @@ python example.py
 
 ### コマンドライン引数
 
-- `library_url`: スクレイピング対象のライブラリの URL（位置引数として指定可能）
-- `--library`, `-l`: スクレイピング対象のライブラリ名と URL。複数指定可能。
-- `--output-dir`, `-o`: Markdown ファイルの出力ディレクトリ（デフォルト: Documents）
-- `--use-direct-scraper`: DirectDeepwikiScraper を使用（デフォルト: True）
-- `--no-direct-scraper`: DirectDeepwikiScraper を無効化
-- `--use-alternative-scraper`: ナビゲーション項目がないページに代替スクレイパーを使用（デフォルト: True）
-- `--no-alternative-scraper`: ナビゲーション項目がないページの代替スクレイパーを無効化
-- `--use-direct-md-scraper`: DirectMarkdownScraper を使用して直接Markdownを取得（デフォルト: False）
-- `--no-direct-md-scraper`: DirectMarkdownScraper を無効化
+- `library_url`: スクレイピング対象のライブラリの URL（位置引数として指定可能）。
+- `--library`, `-l`: スクレイピング対象のライブラリ名と URL。複数指定可能。形式: `--library NAME URL`。
+- `--output-dir`, `-o`: Markdown ファイルの出力ディレクトリ（デフォルト: `Documents`）。
+- `--use-direct-scraper`: `DirectDeepwikiScraper` を使用（HTML から Markdown への変換）。両方が指定された場合、
+  `--use-direct-md-scraper` を上書きします。
+- `--no-direct-scraper`: `DirectDeepwikiScraper` を無効化。
+- `--use-alternative-scraper`: 主要なメソッドが失敗した場合に `direct_scraper.py` の `scrape_deepwiki`
+  関数をフォールバックとして使用（デフォルト: True）。
+- `--no-alternative-scraper`: 代替スクレイパーのフォールバックを無効化。
+- `--use-direct-md-scraper`: `DirectMarkdownScraper` を使用（Markdown を直接取得）。スクレイパータイプが明示的に指定されていない場合の
+  **デフォルト動作**です。
+- `--no-direct-md-scraper`: `DirectMarkdownScraper` を無効化。
+
+**スクレイパーの優先順位:**
+
+1. `--use-direct-scraper` が指定された場合、`DirectDeepwikiScraper` (HTML から Markdown へ) が使用されます。
+2. `--use-direct-md-scraper` が指定された場合 (かつ `--use-direct-scraper` が指定されていない場合)、
+   `DirectMarkdownScraper` (直接 Markdown) が使用されます。
+3. `--use-direct-scraper` も `--use-direct-md-scraper` も指定されていない場合、**デフォルト**で `DirectMarkdownScraper` (
+   直接 Markdown) が使用されます。
+4. `--use-alternative-scraper` フラグは、選択された主要スクレイパー内のフォールバックメカニズムを制御します。
 
 ### 使用例
 
-1. 簡易的な使い方：
+1. **簡易的な使い方 (デフォルトで DirectMarkdownScraper を使用):**
    ```
-   python run_scraper.py "https://deepwiki.com/python"
-   ```
-
-2. 明示的なパラメータを使用した単一のライブラリをスクレイピング：
-   ```
-   python run_scraper.py --library "python" "https://deepwiki.example.com/python"
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python"
    ```
 
-3. 直接スクレイパーを使用してMarkdownを直接取得：
+2. **明示的なパラメータを使用した単一のライブラリをスクレイピング (デフォルトで DirectMarkdownScraper を使用):**
    ```
-   python run_direct_scraper.py "https://deepwiki.com/python"
-   ```
-
-4. HTMLも保存する直接スクレイパーの使用：
-   ```
-   python run_direct_scraper.py --library "python" "https://deepwiki.example.com/python" --save-html
+   python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.example.com/python"
    ```
 
-3. 複数ライブラリをスクレイピング：
+3. **複数ライブラリをスクレイピング (デフォルトで DirectMarkdownScraper を使用):**
    ```
-   python run_scraper.py --library "python" "https://deepwiki.example.com/python" --library "javascript" "https://deepwiki.example.com/javascript"
-   ```
-
-4. カスタム出力ディレクトリを指定してスクレイピング（簡易的な使い方）：
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --output-dir "MyDocuments"
+   python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.example.com/python" --library "javascript" "https://deepwiki.example.com/javascript"
    ```
 
-5. カスタム出力ディレクトリを指定してスクレイピング（明示的なパラメータを使用）：
+4. **カスタム出力ディレクトリを指定:**
    ```
-   python run_scraper.py --library "python" "https://deepwiki.example.com/python" --output-dir "MyDocuments"
-   ```
-
-6. DirectDeepwikiScraper を使用：
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --output-dir "MyDocuments"
    ```
 
-7. DirectDeepwikiScraper を無効化：
+5. **DirectMarkdownScraper (直接 Markdown) を明示的に使用:**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --no-direct-scraper
-   ```
-
-8. ナビゲーション項目がないページの代替スクレイパーを無効化：
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --no-alternative-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --use-direct-md-scraper
    ```
 
-9. 代替スクレイパーを明示的に有効化（デフォルトで有効）：
+6. **DirectDeepwikiScraper (HTML から Markdown へ) を明示的に使用:**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --use-alternative-scraper
-   ```
-
-10. DirectMarkdownScraper を使用して直接Markdownを取得：
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-md-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --use-direct-scraper
    ```
 
-11. カスタム出力ディレクトリを指定してDirectMarkdownScraperを使用：
+7. **代替スクレイパーのフォールバックを無効化:**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-md-scraper --output-dir "DirectMarkdownDocuments"
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --no-alternative-scraper
    ```
 
-12. DirectMarkdownScraperのみを使用（他のスクレイパーを無効化）：
+8. **DirectDeepwikiScraper を使用し、代替フォールバックを無効化:**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-md-scraper --no-direct-scraper --no-alternative-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --use-direct-scraper --no-alternative-scraper
    ```
 
 ## 出力構成
@@ -223,76 +225,86 @@ python example.py
 変換された Markdown ファイルは以下のようなディレクトリ構成で保存されます：
 
 ```
-Documents/
-├── library_name1/
+<output_dir>/
+├── <library_name1>/
 │   └── md/
-│       ├── page1.md
-│       ├── page2.md
+│       ├── <page_name1>.md
+│       ├── <page_name2>.md
 │       └── ...
-├── library_name2/
+├── <library_name2>/
 │   └── md/
-│       ├── page1.md
-│       ├── page2.md
+│       ├── <page_name1>.md
+│       ├── <page_name2>.md
 │       └── ...
 └── ...
 ```
 
+- `<output_dir>` は `--output-dir` で指定されたディレクトリです (デフォルト: `Documents`)。
+- `<library_name>` はライブラリに提供された名前です。
+- Deepwiki サイトの各ページは、`md` サブディレクトリ内に個別の `.md` ファイルとして保存されます。
+
 ## 仕組み
 
-### 静的ページスクレイピング（デフォルト）
+このツールは異なるスクレイピング戦略を提供します：
 
-1. requests ライブラリを使用して指定された deepwiki サイトに接続します。
-2. `ul` タグ（class="flex-1 flex-shrink-0 space-y-1 overflow-y-auto py-1"）からナビゲーション項目を抽出します。
-3. 各ナビゲーション項目ごとにページコンテンツを取得します。
-4. ページからメインコンテンツを抽出します。
-5. HTML コンテンツを Markdown 形式に変換します。
-6. 指定されたディレクトリ構造で Markdown ファイルとして保存します。
+### 1. 直接 Markdown スクレイピング (`DirectMarkdownScraper` - デフォルト)
 
-### 直接スクレイピング機能
+- **優先度:** 最高 (デフォルトで使用)。
+- **方法:** サーバーの内部 API またはデータ構造から直接生の Markdown コンテンツを取得するために最適化された特殊なヘッダーを使用して
+  Deepwiki サイトに接続します。
+- **プロセス:**
+    1. Markdown データを取得するように設計されたリクエストを送信します。
+    2. レスポンス (多くの場合 JSON または特定のテキスト形式) を解析して Markdown コンテンツを抽出します。
+    3. 抽出された Markdown をクリーンアップします (メタデータやスクリプトタグなどの潜在的なアーティファクトを削除)。
+    4. クリーンアップされた Markdown コンテンツを直接ファイルに保存します。
+- **利点:** 最高忠実度の Markdown、元の書式を保持、HTML 変換エラーを回避。
 
-#### DirectDeepwikiScraper
+### 2. 直接 HTML スクレイピング (`DirectDeepwikiScraper`)
 
-直接スクレイピング機能では、DeepWikiから直接コンテンツを取得できます：
+- **優先度:** 中 (`--use-direct-scraper` が指定された場合に使用)。
+- **方法:** レンダリングされた HTML ページを取得するためにブラウザリクエストを模倣したヘッダーを使用して Deepwiki
+  サイトに接続します。
+- **プロセス:**
+    1. ページの完全な HTML を取得します。
+    2. BeautifulSoup を使用して HTML を解析します。
+    3. さまざまな CSS セレクターを使用してメインコンテンツ領域を特定します。
+    4. `markdownify` ライブラリを使用して、選択された HTML コンテンツブロックを Markdown に変換します。
+    5. 変換された Markdown を保存します。
+- **利点:** 直接 Markdown 取得が失敗した場合や利用できない場合に、基本的な静的スクレイピングよりも堅牢です。
+- **欠点:** HTML 構造と変換品質に依存します。
 
-1. 特殊なヘッダーを使用してDeepWikiサイトに接続します
-2. レスポンスからHTMLコンテンツを抽出します
-3. 左側のURLを取得するために必要なHTML構造を保持します（オプション）
-4. HTMLをMarkdownに変換します
-5. ページからナビゲーション項目を抽出し、階層的にスクレイピングします
-6. 指定されたディレクトリ構造でMarkdownファイルとして保存します
+### 3. 代替スクレイパーフォールバック (`direct_scraper.py` の `scrape_deepwiki`)
 
-この方法は、標準的なスクレイピング方法よりも信頼性の高いコンテンツ抽出を提供します。
+- **優先度:** 最低 (`--use-alternative-scraper` が有効な場合 (デフォルト)、主要スクレイパー内のフォールバックとして使用)。
+- **方法:** 主要なメソッドが問題 (例: 複雑なナビゲーションや予期しないページ構造) に遭遇した場合に使用される可能性のある、より単純な静的リクエストメカニズム。
+- **プロセス:** HTML を取得し、基本的なコンテンツ抽出を試みます。
 
-#### DirectMarkdownScraper（新機能）
+### ナビゲーションと階層
 
-新しい直接Markdownスクレイピング機能では、HTML変換なしでDeepWikiから直接Markdownコンテンツを取得できます：
-
-1. Markdownコンテンツに最適化された特殊なヘッダーを使用してDeepWikiサイトに接続します
-2. サーバーから直接Markdownコンテンツを取得します
-3. ページからナビゲーション項目を抽出し、階層的にスクレイピングします
-4. 指定されたディレクトリ構造でMarkdownファイルとして保存します
-
-この方法は、HTMLからMarkdownへの変換プロセスを完全にスキップし、適切な書式と構造を持つ最高品質のMarkdownコンテンツを提供します。
+- `DirectMarkdownScraper` と `DirectDeepwikiScraper` の両方が、取得したコンテンツ (Markdown または HTML)
+  内のナビゲーションリンク (目次やサイドバーなど) を特定しようとします。
+- これらのリンクを再帰的にたどり、ライブラリ全体の構造をスクレイピングします。
 
 ### エラー処理
 
-このツールには、一般的な問題に対処するための堅牢なエラー処理が含まれています：
+このツールには堅牢なエラー処理が含まれています：
 
-1. スクレイピングを試みる前にドメインを検証します（example.comのようなプレースホルダードメインを拒否）
-2. 接続を試みる前にドメインが到達可能かどうかを確認します
-3. ドメインに到達できない場合に明確なエラーメッセージを提供します
-4. 主要な方法が失敗した場合に代替スクレイピング方法に適切にフォールバックします
-5. 一時的なエラーに対して指数バックオフを使用した再試行メカニズムを実装しています
-
+- スクレイピング前にドメインを検証します。
+- ドメインの到達可能性を確認します。
+- 明確なエラーメッセージを提供します。
+- 一時的なネットワークエラーに対して指数バックオフを使用した再試行メカニズムを実装しています。
+- 設定されており、主要なメソッドが失敗した場合に代替スクレイパーにフォールバックします。
 
 ## カスタマイズ
 
-`deepwiki_to_md.py` を編集することで以下をカスタマイズできます：
+Python スクリプト (`deepwiki_to_md/deepwiki_to_md.py`, `deepwiki_to_md/direct_scraper.py`,
+`deepwiki_to_md/direct_md_scraper.py`) を編集することで以下をカスタマイズできます：
 
-- コンテンツ抽出に使用する HTML セレクタ
-- HTML から Markdown への変換ロジック
-- 出力ファイルの命名規則
-- リクエスト間の遅延時間
+- コンテンツ抽出に使用する HTML セレクタ (`DirectDeepwikiScraper` 内)。
+- Markdown の解析/クリーニングロジック (`DirectMarkdownScraper` 内)。
+- HTML から Markdown への変換オプション (`markdownify` の設定)。
+- 出力ファイルの命名規則。
+- リクエストヘッダーと遅延。
 
 ## ライセンス
 
