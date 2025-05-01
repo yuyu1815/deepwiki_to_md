@@ -371,6 +371,9 @@ class DeepwikiScraper:
         """
         logger.info(f"Scraping library: {library_name}")
 
+        # Initialize html_content to None
+        html_content = None
+
         # Extract the path from the URL
         parsed_url = urlparse(library_url)
         domain = parsed_url.netloc
@@ -464,11 +467,12 @@ class DeepwikiScraper:
                 logger.info(f"Falling back to standard scraping method for {library_url}")
 
         # If direct_scraper.py failed or is not used, fall back to the standard method
-        # Get the library's main page
-        html_content = self.get_page_content(library_url)
+        # Get the library's main page if we don't have content yet
         if not html_content:
-            logger.error(f"Failed to fetch content for {library_name}")
-            return
+            html_content = self.get_page_content(library_url)
+            if not html_content:
+                logger.error(f"Failed to fetch content for {library_name}")
+                return
 
         # Extract navigation items, using the library URL as the base URL
         nav_items = self.extract_navigation_items(html_content, library_url)
