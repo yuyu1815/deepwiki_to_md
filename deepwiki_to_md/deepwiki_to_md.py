@@ -25,7 +25,7 @@ except ImportError:
 
 
         # Define dummy implementations for missing modules
-        class DirectDeepwikiScraper:
+        class DummyDirectDeepwikiScraper:
             def __init__(self, *args, **kwargs):
                 logging.warning("DirectDeepwikiScraper is not available - direct scraping will be disabled")
                 pass
@@ -34,11 +34,17 @@ except ImportError:
                 return None
 
 
-        def scrape_deepwiki(url, **kwargs):
+        def dummy_scrape_deepwiki(url, **kwargs):
             logging.error("scrape_deepwiki function called but not available")
             return None
 
-        class DirectMarkdownScraper:
+
+        # Use the dummy class names for the actual imports
+        DirectDeepwikiScraper = DummyDirectDeepwikiScraper
+        scrape_deepwiki = dummy_scrape_deepwiki
+
+
+        class DummyDirectMarkdownScraper:
             def __init__(self, *args, **kwargs):
                 logging.warning("DirectMarkdownScraper is not available - direct markdown scraping will be disabled")
                 pass
@@ -139,12 +145,16 @@ class DeepwikiScraper:
         try:
             socket.create_connection((domain, 443), timeout=timeout)
             return True
-        except (socket.timeout, socket.error):
+        except (socket.timeout, socket.gaierror, socket.herror, socket.error) as e:
+            # Log the specific error for debugging
+            logger.debug(f"HTTPS connection to {domain} failed: {e}")
             # If HTTPS fails, try HTTP (port 80)
             try:
                 socket.create_connection((domain, 80), timeout=timeout)
                 return True
-            except (socket.timeout, socket.error):
+            except (socket.timeout, socket.gaierror, socket.herror, socket.error) as e:
+                # Log the specific error for debugging
+                logger.debug(f"HTTP connection to {domain} failed: {e}")
                 return False
 
     # Selenium methods removed - only static requests are supported
@@ -176,11 +186,17 @@ class DeepwikiScraper:
                     logger.info(f"DirectDeepwikiScraper successfully scraped {url} to {md_file_path}")
                     # If DirectDeepwikiScraper was successful, we can return the HTML content from the regular request
                     # This ensures we have the HTML content for further processing
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Network error using DirectDeepwikiScraper for {url}: {e}")
+                # Continue with regular request if DirectDeepwikiScraper fails due to network issues
+            except (ValueError, TypeError) as e:
+                logger.error(f"Parameter error using DirectDeepwikiScraper for {url}: {e}")
+                # Continue with regular request if DirectDeepwikiScraper fails due to parameter issues
             except Exception as e:
-                logger.error(f"Error using DirectDeepwikiScraper for {url}: {e}")
+                logger.error(f"Unexpected error using DirectDeepwikiScraper for {url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
-                # Continue with regular request if DirectDeepwikiScraper fails
+                # Continue with regular request if DirectDeepwikiScraper fails for any other reason
 
         # Use requests to fetch the page
         retries = 0
@@ -461,9 +477,14 @@ class DeepwikiScraper:
                         self.save_markdown(library_name, library_name, markdown, url_path)
 
                         # Fix markdown links in the output directory
-                        md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
-                        logger.info(f"Fixing markdown links in {md_directory}")
-                        fix_markdown_links(md_directory)
+                        try:
+                            md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                            logger.info(f"Fixing markdown links in {md_directory}")
+                            fix_markdown_links(md_directory)
+                        except Exception as e:
+                            logger.error(f"Error fixing markdown links in {md_directory}: {e}")
+                            import traceback
+                            logger.error(traceback.format_exc())
                         return
                     else:
                         logger.warning(f"No main content found in response from scrape_deepwiki for {library_url}")
@@ -495,9 +516,14 @@ class DeepwikiScraper:
                 self.save_markdown(library_name, library_name, markdown, url_path)
 
                 # Fix markdown links in the output directory
-                md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
-                logger.info(f"Fixing markdown links in {md_directory}")
-                fix_markdown_links(md_directory)
+                try:
+                    md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+                    logger.info(f"Fixing markdown links in {md_directory}")
+                    fix_markdown_links(md_directory)
+                except Exception as e:
+                    logger.error(f"Error fixing markdown links in {md_directory}: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
             return
 
         # Process each navigation item
@@ -529,9 +555,14 @@ class DeepwikiScraper:
             self.save_markdown(library_name, title, markdown, url_path)
 
         # After all navigation items are processed, fix markdown links in the output directory
-        md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
-        logger.info(f"Fixing markdown links in {md_directory}")
-        fix_markdown_links(md_directory)
+        try:
+            md_directory = os.path.join(os.getcwd(), self.output_dir, url_path, "md")
+            logger.info(f"Fixing markdown links in {md_directory}")
+            fix_markdown_links(md_directory)
+        except Exception as e:
+            logger.error(f"Error fixing markdown links in {md_directory}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def run(self, libraries):
         """

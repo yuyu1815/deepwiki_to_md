@@ -105,8 +105,19 @@ def scrape_deepwiki(url):
         response = session.get(full_url, headers=headers, timeout=10)
         logger.info(f"レスポンスステータス: {response.status_code}")
         return response
-    except Exception as e:
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"接続エラーが発生: {e}")
+        raise
+    except requests.exceptions.Timeout as e:
+        logger.error(f"タイムアウトエラーが発生: {e}")
+        raise
+    except requests.exceptions.RequestException as e:
         logger.error(f"リクエスト中にエラーが発生: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"予期しないエラーが発生: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise
 
 
@@ -230,8 +241,20 @@ class DirectMarkdownScraper:
             # このスクレイピング方法では、レスポンスの内容が直接Markdownとして使用可能
             return self.save_markdown(response.text, library_name, page_path)
 
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"接続エラーによりページのスクレイピングに失敗しました: {url} ({e})")
+            return None
+        except requests.exceptions.Timeout as e:
+            logger.error(f"タイムアウトによりページのスクレイピングに失敗しました: {url} ({e})")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"リクエストエラーによりページのスクレイピングに失敗しました: {url} ({e})")
+            return None
+        except ValueError as e:
+            logger.error(f"値エラーによりページのスクレイピングに失敗しました: {url} ({e})")
+            return None
         except Exception as e:
-            logger.error(f"ページのスクレイピングに失敗しました: {url} ({e})")
+            logger.error(f"予期しないエラーによりページのスクレイピングに失敗しました: {url} ({e})")
             import traceback
             logger.error(traceback.format_exc())
             return None
@@ -351,14 +374,37 @@ class DirectMarkdownScraper:
             fix_markdown_links(md_directory)
 
             return md_files
+        except requests.exceptions.RequestException as e:
+            logger.error(f"リクエストエラーによりナビゲーション項目の抽出に失敗しました: {e}")
+            # エラーが発生した場合でもMarkdownリンクを修正
+            try:
+                md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
+                logger.info(f"Fixing markdown links in {md_directory}")
+                fix_markdown_links(md_directory)
+            except Exception as fix_error:
+                logger.error(f"Markdownリンクの修正中にエラーが発生しました: {fix_error}")
+            return [main_page_path]  # エラーが発生した場合はメインページのみ返す
+        except (ValueError, TypeError) as e:
+            logger.error(f"値エラーによりナビゲーション項目の抽出に失敗しました: {e}")
+            # エラーが発生した場合でもMarkdownリンクを修正
+            try:
+                md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
+                logger.info(f"Fixing markdown links in {md_directory}")
+                fix_markdown_links(md_directory)
+            except Exception as fix_error:
+                logger.error(f"Markdownリンクの修正中にエラーが発生しました: {fix_error}")
+            return [main_page_path]  # エラーが発生した場合はメインページのみ返す
         except Exception as e:
-            logger.error(f"ナビゲーション項目の抽出中にエラーが発生しました: {e}")
+            logger.error(f"予期しないエラーによりナビゲーション項目の抽出に失敗しました: {e}")
             import traceback
             logger.error(traceback.format_exc())
             # エラーが発生した場合でもMarkdownリンクを修正
-            md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
-            logger.info(f"Fixing markdown links in {md_directory}")
-            fix_markdown_links(md_directory)
+            try:
+                md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
+                logger.info(f"Fixing markdown links in {md_directory}")
+                fix_markdown_links(md_directory)
+            except Exception as fix_error:
+                logger.error(f"Markdownリンクの修正中にエラーが発生しました: {fix_error}")
             return [main_page_path]  # エラーが発生した場合はメインページのみ返す
 
     def run(self, libraries):
