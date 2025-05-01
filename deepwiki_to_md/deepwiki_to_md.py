@@ -152,7 +152,7 @@ class DeepwikiScraper:
 
         # Use requests to fetch the page
         retries = 0
-        while retries < max_retries:  # Changed from <= to < to avoid potential infinite loop
+        while retries < max_retries and max_retries >= 0:  # Ensure max_retries is non-negative
             try:
                 logger.info(f"Fetching {url} with requests")
                 response = self.session.get(url, timeout=10)
@@ -328,7 +328,7 @@ class DeepwikiScraper:
         else:
             # Fallback to the old behavior
             if not library_name:
-                raise ValueError("Either path or library_name must be provided")
+                raise ValueError("library_name must be provided when path is None")
             dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, library_name, "md")
         return dir_path
 
@@ -528,6 +528,8 @@ class DeepwikiScraper:
             logger.error(f"Error fixing markdown links in {md_directory}: {e}")
             import traceback
             logger.error(traceback.format_exc())
+            # Log the error but don't re-raise it to avoid interrupting the scraping process
+            # This allows the scraping to continue even if link fixing fails
 
     def run(self, libraries):
         """

@@ -133,6 +133,36 @@ class DirectMarkdownScraper:
         """
         self.output_dir = output_dir
 
+    def remove_custom_end_data(self, content):
+        """
+        ファイル末尾の独自データを削除する
+
+        Args:
+            content (str): 処理するコンテンツ
+
+        Returns:
+            str: 独自データが削除されたコンテンツ
+        """
+        # 独自データは通常、特定のパターンで始まる行から始まる
+        # 例: "- Continued improvements..." や JSON-like データ
+        end_data_patterns = [
+            r'^-\s+Continued improvements',  # 例: "- Continued improvements to developer experience..."
+            r'^c:null$',  # 例: "c:null"
+            r'^\d+:\[\["',  # 例: "10:[[\"$\",\"title\",\"0\",{\"children\":..."
+        ]
+
+        cleaned_content = content
+        for pattern in end_data_patterns:
+            match = re.search(pattern, cleaned_content, re.MULTILINE)
+            if match:
+                # マッチした行の前までの内容だけを保持
+                end_pos = match.start()
+                original_length = len(cleaned_content)
+                cleaned_content = cleaned_content[:end_pos].rstrip()
+                logger.info(f"ファイル末尾の独自データを削除しました: {original_length - len(cleaned_content)} バイト")
+
+        return cleaned_content
+
     def save_markdown(self, content, library_name, page_path):
         """
         Markdownコンテンツをファイルに保存する
@@ -168,25 +198,7 @@ class DirectMarkdownScraper:
         filename = re.sub(r'[<>:"/\\|?*]', '_', filename)  # 無効な文字を置換
 
         # JavaScriptを削除する機能は削除されました
-        cleaned_content = content
-
-        # ファイル末尾の独自データを削除する
-        # 独自データは通常、特定のパターンで始まる行から始まる
-        # 例: "- Continued improvements..." や JSON-like データ
-        end_data_patterns = [
-            r'^-\s+Continued improvements',  # 例: "- Continued improvements to developer experience..."
-            r'^c:null$',  # 例: "c:null"
-            r'^\d+:\[\["',  # 例: "10:[[\"$\",\"title\",\"0\",{\"children\":..."
-        ]
-
-        for pattern in end_data_patterns:
-            match = re.search(pattern, cleaned_content, re.MULTILINE)
-            if match:
-                # マッチした行の前までの内容だけを保持
-                end_pos = match.start()
-                original_length = len(cleaned_content)
-                cleaned_content = cleaned_content[:end_pos].rstrip()
-                logger.info(f"ファイル末尾の独自データを削除しました: {original_length - len(cleaned_content)} バイト")
+        cleaned_content = self.remove_custom_end_data(content)
 
         # 最初の28行を削除
         if cleaned_content:
