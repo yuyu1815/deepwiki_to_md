@@ -191,6 +191,13 @@ class DeepwikiScraper:
         filename = re.sub(r'[\\/*?:"<>|]', "", title).strip()
         filename = re.sub(r'\s+', '_', filename)
 
+        # Remove the first 28 lines from the markdown content
+        if markdown_content:
+            lines = markdown_content.split('\n')
+            if len(lines) > 28:
+                markdown_content = '\n'.join(lines[28:])
+                logger.info(f"Removed the first 28 lines from {filename}.md")
+
         # Save the Markdown content to a file
         file_path = os.path.join(dir_path, f"{filename}.md")
         with open(file_path, 'w', encoding='utf-8') as f:

@@ -173,3 +173,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+*.md
+!README.md
+!README_ja.md
+!.junie/guidelines.md
