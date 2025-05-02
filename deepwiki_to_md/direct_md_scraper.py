@@ -18,7 +18,6 @@ except ImportError:
         logger.error("Could not import fix_markdown_links module")
 
 
-        # Define a dummy function that does nothing if import fails
         def fix_markdown_links(directory):
             logger = logging.getLogger(__name__)
             logger.error("fix_markdown_links module not available")
@@ -35,35 +34,43 @@ logger = logging.getLogger(__name__)
 def scrape_deepwiki(url):
     """
     指定されたURLからdeepwikiコンテンツをスクレイピングする関数
+    # Function to scrape deepwiki content from the specified URL
 
     Args:
         url: スクレイピングするdeepwikiのURL（例：https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization）
+        # url: The URL of the deepwiki page to scrape (e.g., https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization)
 
     Returns:
         requests.Response: レスポンスオブジェクト
+        # requests.Response: The response object
     """
     # URLからドメインとパスを抽出
+    # Extract domain and path from the URL
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     path = parsed_url.path
 
     # セッションの作成
+    # Create a session
     session = requests.Session()
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
     })
 
     # URLを解析してリファラーを作成（URLの一部を使用）
+    # Parse the URL to create a referrer (using part of the URL)
     path_parts = path.strip('/').split('/')
     referer_path = '/'.join(path_parts[:-1]) if len(path_parts) > 1 else path
 
     # クエリパラメータを保持
+    # Keep query parameters
     query = parsed_url.query
     full_url = f"{parsed_url.scheme}://{domain}{path}"
     if query:
         full_url += f"?{query}"
 
     # ヘッダーの設定（動的に生成）
+    # Set headers (dynamically generated)
     headers = {
         "authority": domain,
         "method": "GET",
@@ -87,14 +94,18 @@ def scrape_deepwiki(url):
     }
 
     logger.info(f"リクエスト実行: {full_url}")
+    # Execute request
 
     # リクエストの実行
+    # Execute the request
     try:
         response = session.get(full_url, headers=headers, timeout=10)
         logger.info(f"レスポンスステータス: {response.status_code}")
+        # Response status
         return response
     except Exception as e:
         logger.error(f"リクエスト中にエラーが発生: {e}")
+        # Error occurred during request
         raise
 
 
@@ -108,135 +119,158 @@ class DirectMarkdownScraper:
         """
         self.output_dir = output_dir
         # Dictionary to store the content hash of saved files to avoid duplicates
+        # 保存されたファイルのコンテンツハッシュを保存して重複を避けるための辞書
         self.saved_content_hash = None
 
     def save_markdown(self, content, library_name, page_path):
         """
         Markdownコンテンツをファイルに保存する
         見出し(##)ごとに別々のファイルに分割して保存する
-
+        Save Markdown content to a file
+        Split and save into separate files for each heading (##)
         Args:
             content (str): 保存するMarkdownコンテンツ
             library_name (str): ライブラリ名
             page_path (str): ページのパス
+            # library_name (str): Library name
+            # content (str): Markdown content to save
+            # page_path (str): Page path
 
         Returns:
             list: 保存したファイルのパスのリスト
+            # list: List of saved file paths
         """
         # ライブラリ名が指定されている場合はそれを使用し、そうでない場合はURLパスから取得
+        # Use the specified library name if provided, otherwise get it from the URL path
         if library_name:
             dir_path_part = library_name
         else:
             # URLパスから適切な部分を取得
+            # Get the appropriate part from the URL path
             path_parts = page_path.strip('/').split('/')
 
             # URLが複数のパス部分を持つ場合（例：python/cpython/1-overview）
+            # If the URL has multiple path parts (e.g., python/cpython/1-overview)
             if len(path_parts) > 2:
                 # 2番目に最後の部分を使用（例：cpython）
+                # Use the second to last part (e.g., cpython)
                 dir_path_part = path_parts[-2]
             else:
                 # それ以外の場合は最後の部分を使用
+                # Otherwise, use the last part
                 dir_path_part = path_parts[-1] if path_parts else 'index'
 
         # ファイル名用に最後の部分を保持
+        # Keep the last part for the filename
         last_path_part = path_parts[-1] if path_parts else 'index'
 
         # ライブラリディレクトリを作成
+        # Create the library directory
         library_dir = os.path.join(self.output_dir, dir_path_part)
         os.makedirs(library_dir, exist_ok=True)
 
         # 分割ファイル用のmdディレクトリを作成
+        # Create the md directory for split files
         output_path = os.path.join(library_dir, 'md')
         os.makedirs(output_path, exist_ok=True)
 
         # ファイル名を作成
+        # Create the filename
         filename = last_path_part if page_path else 'index'
-        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)  # 無効な文字を置換
+        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)  # 無効な文字を置換 Replace invalid characters
 
         # JavaScriptを削除する機能は削除されました
+        # Feature to remove JavaScript has been removed
         cleaned_content = content
 
         # ファイル末尾の独自データを削除する
+        # Remove proprietary data at the end of the file
         # 独自データは通常、特定のパターンで始まる行から始まる
+        # Proprietary data usually starts from lines beginning with a specific pattern
         # 例: "- Continued improvements..." や JSON-like データ
+        # Example: "- Continued improvements..." or JSON-like data
         end_data_patterns = [
-            r'^-\s+Continued improvements',  # 例: "- Continued improvements to developer experience..."
-            r'^c:null$',  # 例: "c:null"
-            r'^\d+:\[\["',  # 例: "10:[[\"$\",\"title\",\"0\",{\"children\":..."
+            r'^-\s+Continued improvements',  # 例: "- Continued improvements to developer experience..." Example
+            r'^c:null$',  # 例: "c:null" Example
+            r'^\d+:\[\["',  # 例: "10:[[\"$\",\"title\",\"0\",{\"children\":..." Example
         ]
 
         for pattern in end_data_patterns:
             match = re.search(pattern, cleaned_content, re.MULTILINE)
             if match:
                 # マッチした行の前までの内容だけを保持
+                # Keep only the content before the matched line
                 end_pos = match.start()
                 original_length = len(cleaned_content)
                 cleaned_content = cleaned_content[:end_pos].rstrip()
                 logger.info(f"ファイル末尾の独自データを削除しました: {original_length - len(cleaned_content)} バイト")
+                # Removed proprietary data from the end of the file: {original_length - len(cleaned_content)} bytes
 
         # 最初の28行を削除
+        # Delete the first 28 lines
         if cleaned_content:
             lines = cleaned_content.split('\n')
             if len(lines) > 28:
                 cleaned_content = '\n'.join(lines[28:])
                 logger.info(f"最初の28行を削除しました: {filename}.md")
+                # Deleted the first 28 lines: {filename}.md
 
         # コンテンツのハッシュを計算
+        # Calculate the content hash
         import hashlib
         content_hash = hashlib.md5(cleaned_content.encode('utf-8')).hexdigest()
 
         # 既に同じ内容のファイルが保存されているか確認
+        # Check if a file with the same content has already been saved
         if self.saved_content_hash is not None and self.saved_content_hash == content_hash:
-            logger.info(f"同じ内容のファイルが既に保存されているため、{filename}.mdの保存をスキップします")
-            # 既に保存されているファイルのパスを返す（元のファイルとmd/内のファイル）
-            return [
-                os.path.join(library_dir, f"{filename}.md"),
-                os.path.join(output_path, f"{filename}.md")
-            ]
+            logger.info(f"同じ内容のファイルが既に保存されているためスキップ: {filename}.md")
+            # Skipping as a file with the same content has already been saved: {filename}.md
+            return []
 
-        # 新しいハッシュを保存
+        # ハッシュを更新
+        # Update the hash
         self.saved_content_hash = content_hash
 
-        # 保存したファイルのパスのリスト
+        # 見出し(##)でコンテンツを分割
+        # Split content by headings (##)
+        sections = re.split(r'(^##\s+.*)', cleaned_content, flags=re.MULTILINE)
         saved_files = []
 
-        # 元のファイルをライブラリディレクトリに保存
-        original_file_path = os.path.join(library_dir, f"{filename}.md")
-        with open(original_file_path, 'w', encoding='utf-8') as f:
-            f.write(cleaned_content)
-        logger.info(f"元のコンテンツを保存しました: {original_file_path}")
-        saved_files.append(original_file_path)
+        # 最初のセクション（見出しがない場合）
+        # First section (if no heading)
+        first_section = sections[0].strip()
+        if first_section:
+            # 最初のセクションのファイル名
+            # Filename for the first section
+            first_section_filename = f"{filename}_intro.md"
+            first_section_path = os.path.join(output_path, first_section_filename)
+            with open(first_section_path, 'w', encoding='utf-8') as f:
+                f.write(first_section)
+            logger.info(f"保存しました: {first_section_path}")
+            # Saved: {first_section_path}
+            saved_files.append(first_section_path)
 
-        # 見出し(##)でコンテンツを分割
-        sections = self._split_by_headings(cleaned_content)
+        # 見出しごとのセクションを処理
+        # Process sections for each heading
+        for i in range(1, len(sections), 2):
+            heading = sections[i].strip()
+            section_content = sections[i + 1].strip()
 
-        # 見出しごとにファイルを保存
-        if not sections:
-            # 見出しがない場合は元のファイル名で保存
-            md_file_path = os.path.join(output_path, f"{filename}.md")
-            with open(md_file_path, 'w', encoding='utf-8') as f:
-                f.write(cleaned_content)
-            logger.info(f"新しいコンテンツを保存しました: {filename}.md")
-            saved_files.append(md_file_path)
-        else:
-            for heading, section_content in sections:
-                if heading:
-                    # 見出しからファイル名を作成
-                    section_filename = heading.strip()
-                    # 空白を_に置換
-                    section_filename = re.sub(r'\s+', '_', section_filename)
-                    # 無効な文字を置換 (Windows のファイル名に使えない文字に加え、特殊文字も置換)
-                    section_filename = re.sub(r'[<>:"/\\|?*&^%$#@!+={}\[\];,.]', '_', section_filename)
-                else:
-                    # 見出しがない場合（最初のセクションなど）は元のファイル名を使用
-                    section_filename = filename
+            # 見出しからファイル名を生成
+            # Generate filename from heading
+            # Remove '## ' prefix and sanitize
+            # '## ' プレフィックスを削除してサニタイズ
+            section_title = heading[3:].strip()
+            section_filename = re.sub(r'[<>:"/\\|?*]', '_', section_title)
+            section_filename = re.sub(r'\s+', '_', section_filename)
+            section_filename = f"{filename}_{section_filename}.md"
 
-                # ファイルを保存
-                section_file_path = os.path.join(output_path, f"{section_filename}.md")
-                with open(section_file_path, 'w', encoding='utf-8') as f:
-                    f.write(section_content)
-                logger.info(f"セクションを保存しました: {section_filename}.md")
-                saved_files.append(section_file_path)
+            section_path = os.path.join(output_path, section_filename)
+            with open(section_path, 'w', encoding='utf-8') as f:
+                f.write(f"{heading}\n\n{section_content}")
+            logger.info(f"保存しました: {section_path}")
+            # Saved: {section_path}
+            saved_files.append(section_path)
 
         return saved_files
 
@@ -261,28 +295,33 @@ class DirectMarkdownScraper:
 
         if not headings:
             # 見出しがない場合は空のリストを返す
+            # Return an empty list if there are no headings
             return []
 
         sections = []
 
         # 最初の見出しの前のコンテンツを取得
+        # Get the content before the first heading
         if headings[0].start() > 0:
             intro_content = content[:headings[0].start()].strip()
             if intro_content:
                 sections.append((None, intro_content))
 
         # 各見出しごとにセクションを作成
+        # Create sections for each heading
         for i, match in enumerate(headings):
             heading_text = match.group(1)
             start_pos = match.start()
 
             # 次の見出しがある場合はその位置まで、ない場合は最後まで
+            # Up to the position of the next heading if it exists, otherwise to the end
             if i < len(headings) - 1:
                 end_pos = headings[i + 1].start()
             else:
                 end_pos = len(content)
 
             # セクションのコンテンツを取得
+            # Get the content of the section
             section_content = content[start_pos:end_pos].strip()
             sections.append((heading_text, section_content))
 
@@ -301,29 +340,38 @@ class DirectMarkdownScraper:
         """
         try:
             # URLをログに出力
+            # Log the URL
             logger.info(f"scrape_page: URL = {url}")
 
             # URLの各部分を解析
+            # Parse each part of the URL
             parsed_url = urlparse(url)
 
             # 正しいURLを構築
+            # Construct the correct URL
             correct_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
 
             # ページをスクレイピング
+            # Scrape the page
             response = scrape_deepwiki(correct_url)
             if response.status_code != 200:
                 logger.error(f"ページの取得に失敗しました: {url} (ステータスコード: {response.status_code})")
+                # Failed to get the page
                 return []
 
             # URLからページパスを抽出
+            # Extract the page path from the URL
             page_path = parsed_url.path
 
             # レスポンスの内容をMarkdownとして保存
+            # Save the response content as Markdown
             # このスクレイピング方法では、レスポンスの内容が直接Markdownとして使用可能
+            # In this scraping method, the response content can be used directly as Markdown
             return self.save_markdown(response.text, library_name, page_path)
 
         except Exception as e:
             logger.error(f"ページのスクレイピングに失敗しました: {url} ({e})")
+            # Failed to scrape the page
             import traceback
             logger.error(traceback.format_exc())
             return []
@@ -362,6 +410,7 @@ class DirectMarkdownScraper:
                 })
 
         logger.info(f"抽出されたナビゲーション項目数: {len(nav_items)}")
+        # Number of extracted navigation items
         return nav_items
 
     def scrape_library(self, library_url, library_name):
@@ -376,65 +425,83 @@ class DirectMarkdownScraper:
             list: 保存したMarkdownファイルのパスのリスト
         """
         logger.info(f"ライブラリのスクレイピングを開始: {library_name} ({library_url})")
+        # Start scraping the library
 
         # ライブラリ名が指定されている場合はそれを使用し、そうでない場合はURLパスから取得
+        # Use the specified library name if provided, otherwise get it from the URL path
         if library_name:
             dir_path_part = library_name
         else:
             # URLから適切なパス部分を抽出
+            # Extract the appropriate path part from the URL
             parsed_url = urlparse(library_url)
             path_parts = parsed_url.path.strip('/').split('/')
 
             # URLが複数のパス部分を持つ場合（例：python/cpython/1-overview）
+            # If the URL has multiple path parts (e.g., python/cpython/1-overview)
             if len(path_parts) > 2:
                 # 2番目に最後の部分を使用（例：cpython）
+                # Use the second to last part (e.g., cpython)
                 dir_path_part = path_parts[-2]
             else:
                 # それ以外の場合は最後の部分を使用
+                # Otherwise, use the last part
                 dir_path_part = path_parts[-1] if path_parts else 'index'
 
         # メインページをスクレイピング
+        # Scrape the main page
         main_page_paths = self.scrape_page(library_url, library_name)
         if not main_page_paths:
             logger.error(f"メインページのスクレイピングに失敗しました: {library_url}")
+            # Failed to scrape the main page
             return []
 
         # HTMLコンテンツを取得してナビゲーション項目を抽出
+        # Get HTML content and extract navigation items
         try:
             # 通常のHTTPリクエストを使用してHTMLを取得
+            # Get HTML using a normal HTTP request
             response = requests.get(library_url, headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
             })
             if response.status_code != 200:
                 logger.error(f"HTMLの取得に失敗しました: {library_url} (ステータスコード: {response.status_code})")
+                # Failed to get HTML
                 return main_page_paths  # メインページのみ返す
 
             # ナビゲーション項目を抽出
+            # Extract navigation items
             nav_items = self.extract_navigation_items(response.text, library_url)
 
             if not nav_items:
                 logger.warning(f"ナビゲーション項目が見つかりませんでした: {library_url}")
+                # Navigation items not found
                 # メインページのみの場合でもMarkdownリンクを修正
+                # Fix markdown links even if only the main page exists
                 md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
                 logger.info(f"Fixing markdown links in {md_directory}")
                 fix_markdown_links(md_directory)
                 return main_page_paths  # メインページのみ返す
 
             # 保存したファイルのパスのリスト
+            # List of paths to saved files
             md_files = list(main_page_paths)  # リストをコピー
 
             # 各ナビゲーション項目をスクレイピング
+            # Scrape each navigation item
             for item in nav_items:
                 title = item['title']
                 url = item['url']
 
                 logger.info(f"ナビゲーション項目をスクレイピング: {title} ({url})")
+                # Scraping navigation item
 
                 # 小さな遅延を入れてサーバーに負荷をかけないようにする
                 import time
                 time.sleep(1)
 
                 # ページをスクレイピング
+                # Scrape the page
                 page_paths = self.scrape_page(url, library_name)
                 if page_paths:
                     md_files.extend(page_paths)
@@ -475,6 +542,7 @@ class DirectMarkdownScraper:
             library_url = library["url"]
 
             # ライブラリをスクレイピング
+            # Scrape the library
             md_files = self.scrape_library(library_url, library_name)
 
             # 結果を記録
@@ -485,3 +553,42 @@ class DirectMarkdownScraper:
             }
 
         return results
+
+
+def main():
+    # スクレイピング対象のURLリスト
+    # List of URLs to scrape
+    urls_to_scrape = [
+        "https://deepwiki.com/python/cpython/1-overview",
+        "https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization",
+        # 他のURLもここに追加 Add other URLs here
+    ]
+
+    # 出力ディレクトリ
+    # Output directory
+    output_directory = "DirectMarkdownDocuments"
+
+    # スクレイパーのインスタンスを作成
+    # Create scraper instance
+    scraper = DirectMarkdownScraper(output_dir=output_directory)
+
+    # 各URLをスクレイピングして保存
+    # Scrape and save each URL
+    all_saved_files = []
+    for url in urls_to_scrape:
+        logger.info(f"スクレイピング開始: {url}")
+        # Start scraping: {url}
+        # URLからライブラリ名を推測（例：'cpython'）
+        # Infer library name from URL (e.g., 'cpython')
+        path_parts = urlparse(url).path.strip('/').split('/')
+        lib_name = path_parts[1] if len(path_parts) > 1 else None
+
+        saved = scraper.scrape_and_save(url, library_name=lib_name)
+        all_saved_files.extend(saved)
+
+    logger.info(f"処理完了。合計 {len(all_saved_files)} ファイルを保存しました。")
+    # Processing complete. Saved a total of {len(all_saved_files)} files.
+
+
+if __name__ == "__main__":
+    main()

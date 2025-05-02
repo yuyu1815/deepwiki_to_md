@@ -20,6 +20,7 @@ except ImportError:
     except ImportError:
         logging.error("Could not import DirectDeepwikiScraper module")
         # Define a dummy class that does nothing if import fails
+        # インポートに失敗した場合、何もしないダミークラスを定義する
         class DirectDeepwikiScraper:
             def __init__(self, *args, **kwargs):
                 pass
@@ -36,6 +37,7 @@ except ImportError:
     except ImportError:
         logging.error("Could not import scrape_deepwiki function from direct_scraper.py")
         # Define a dummy function that does nothing if import fails
+        # インポートに失敗した場合、何もしないダミー関数を定義する
         def scrape_deepwiki(url):
             logging.error("scrape_deepwiki function not available")
             return None
@@ -52,10 +54,10 @@ except ImportError:
 
 
         # Define a dummy class that does nothing if import fails
+        # インポートに失敗した場合、何もしないダミークラスを定義する
         class DirectMarkdownScraper:
             def __init__(self, *args, **kwargs):
                 pass
-
             def scrape_page(self, *args, **kwargs):
                 return None
 
@@ -78,6 +80,7 @@ except ImportError:
     except ImportError:
         logger.error("Could not import fix_markdown_links module")
         # Define a dummy function that does nothing if import fails
+        # インポートに失敗した場合、何もしないダミー関数を定義する
         def fix_markdown_links(directory):
             logger.error("fix_markdown_links module not available")
             return
@@ -109,16 +112,20 @@ class DeepwikiScraper:
         self.output_dir = output_dir
 
         # Initialize DirectMarkdownScraper (highest priority)
+        # DirectMarkdownScraperを初期化（最高優先度）
         if self.use_direct_md_scraper:
             self.direct_md_scraper = DirectMarkdownScraper(output_dir)
 
         # Initialize DirectDeepwikiScraper
+        # DirectDeepwikiScraperを初期化
         if self.use_direct_scraper:
             self.direct_scraper = DirectDeepwikiScraper(output_dir)
 
         # Initialize requests session for static content
+        # 静的コンテンツ用のリクエストセッションを初期化
         self.session = requests.Session()
         # Set a user agent to mimic a browser
+        # ブラウザを模倣するユーザーエージェントを設定
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
@@ -135,11 +142,13 @@ class DeepwikiScraper:
             bool: True if the domain is reachable, False otherwise.
         """
         # Try HTTPS (port 443) first
+        # まずHTTPS（ポート443）を試す
         try:
             socket.create_connection((domain, 443), timeout=timeout)
             return True
         except (socket.timeout, socket.error):
             # If HTTPS fails, try HTTP (port 80)
+            # HTTPSが失敗した場合、HTTP（ポート80）を試す
             try:
                 socket.create_connection((domain, 80), timeout=timeout)
                 return True
@@ -163,25 +172,32 @@ class DeepwikiScraper:
             str: The HTML content of the page.
         """
         # Log the URL being fetched
+        # 取得中のURLをログに出力
         logger.info(f"Getting page content for URL: {url}")
 
         # Use DirectDeepwikiScraper if enabled and library_name is provided
+        # DirectDeepwikiScraperが有効でlibrary_nameが提供されている場合に使用
         if self.use_direct_scraper and library_name:
             try:
                 logger.info(f"Using DirectDeepwikiScraper for {url}")
                 # Use DirectDeepwikiScraper with debug mode disabled
+                # デバッグモードを無効にしてDirectDeepwikiScraperを使用
                 md_file_path = self.direct_scraper.scrape_page(url, library_name, save_html=True, debug=False)
                 if md_file_path:
                     logger.info(f"DirectDeepwikiScraper successfully scraped {url} to {md_file_path}")
                     # If DirectDeepwikiScraper was successful, we can return the HTML content from the regular request
+                    # DirectDeepwikiScraperが成功した場合、通常のリクエストからHTMLコンテンツを返すことができる
                     # This ensures we have the HTML content for further processing
+                    # これにより、さらなる処理のためにHTMLコンテンツを確保できる
             except Exception as e:
                 logger.error(f"Error using DirectDeepwikiScraper for {url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
                 # Continue with regular request if DirectDeepwikiScraper fails
+                # DirectDeepwikiScraperが失敗した場合、通常のリクエストを続行
 
         # Use requests to fetch the page
+        # requestsを使用してページを取得
         retries = 0
         while retries <= max_retries:
             try:
@@ -196,8 +212,10 @@ class DeepwikiScraper:
                     return None
 
                 # Calculate exponential backoff delay with jitter
+                # ジッター付きの指数バックオフ遅延を計算
                 delay = base_delay * (2 ** (retries - 1))
                 delay += random.uniform(0, 0.2)  # Add jitter
+                # ジッターを追加
                 logger.warning(f"Retry {retries}/{max_retries} for {url} after {delay:.2f}s delay. Error: {e}")
                 time.sleep(delay)
 
@@ -244,33 +262,45 @@ class DeepwikiScraper:
 
     def extract_content(self, html_content, url):
         """
-        ページからメインコンテンツを抽出します。
+        Extract the main content from the page.
 
         Args:
-            html_content (str): ページのHTMLコンテンツ。
-            url (str): コンテンツを抽出するページのURL。
+            html_content (str): The HTML content of the page.
+            url (str): The URL of the page to extract content from.
 
         Returns:
-            BeautifulSoup.Tag | str: ページのメインコンテンツ要素、または見つからない場合は空文字列。
+            BeautifulSoup.Tag | str: The main content element of the page, or an empty string if not found.
         """
         if not html_content:
             return ""
 
         soup = BeautifulSoup(html_content, 'html.parser')
 
+        # Try multiple potential selectors for the main content
         # メインコンテンツの可能性のあるセレクターを複数試す
+        # From more specific to more general
         # より具体的なものから一般的なものへ
         selectors = [
-            'main article',  # 元のセレクター
-            'main .content',  # メインコンテンツの一般的なパターン
-            'main',  # main要素
-            'article',  # article要素
-            '.content',  # contentクラス
-            '.article-content',  # article-contentクラス
-            '#content',  # content ID
-            '.markdown-body',  # markdownコンテンツの一般的なクラス
-            '.documentation-content',  # ドキュメンテーションコンテンツの一般的なクラス
-            'div.container div.row div.col'  # Bootstrapのようなレイアウト
+            'main article',  # Original selector
+            # 元のセレクター
+            'main .content',  # Common pattern for main content
+            # メインコンテンツの一般的なパターン
+            'main',  # Main element
+            # main要素
+            'article',  # Article element
+            # article要素
+            '.content',  # Content class
+            # contentクラス
+            '.article-content',  # Article-content class
+            # article-contentクラス
+            '#content',  # Content ID
+            # content ID
+            '.markdown-body',  # Common class for markdown content
+            # markdownコンテンツの一般的なクラス
+            '.documentation-content',  # Common class for documentation content
+            # ドキュメンテーションコンテンツの一般的なクラス
+            'div.container div.row div.col'  # Bootstrap-like layout
+            # Bootstrapのようなレイアウト
         ]
 
         main_content = None
@@ -278,13 +308,16 @@ class DeepwikiScraper:
             main_content = soup.select_one(selector)
             if main_content and len(main_content.get_text(strip=True)) > 0:
                 logger.info(f"セレクターを使用してコンテンツを発見: {selector}")
+                # Content found using selector
                 break
 
         if not main_content:
             # 特定のコンテナが見つからない場合、bodyまたは最大のテキストコンテナを取得しようとする
+            # If a specific container is not found, try to get the body or the largest text container
             body = soup.find('body')
             if body:
                 # 最も多くのテキストコンテンツを持つdivを見つける
+                # Find the div with the most text content
                 divs = body.find_all('div', recursive=False)
                 if divs:
                     main_content = max(divs, key=lambda x: len(x.get_text(strip=True)))
@@ -293,7 +326,9 @@ class DeepwikiScraper:
 
         if not main_content or len(main_content.get_text(strip=True)) == 0:
             # ここで url 引数が利用可能になる
+            # The url argument becomes available here
             logger.warning(f"URLのメインコンテンツ要素が見つかりません: {url}")
+            # Main content element not found for URL
             return ""
 
         return main_content
@@ -325,15 +360,18 @@ class DeepwikiScraper:
             soup = BeautifulSoup(str(html_element), 'html.parser')
 
         # Find and remove the navigation menu
+        # ナビゲーションメニューを見つけて削除する
         nav_ul = soup.select_one('ul.flex-1.flex-shrink-0.space-y-1.overflow-y-auto.py-1')
         if nav_ul:
             nav_ul.decompose()
             logger.info("Navigation menu removed before Markdown conversion")
 
         # Convert the modified HTML to string
+        # 変更されたHTMLを文字列に変換する
         html_str = str(soup)
 
         # Use markdownify to convert HTML to Markdown
+        # markdownifyを使用してHTMLをMarkdownに変換する
         markdown = markdownify(html_str, heading_style="ATX")
 
         return markdown
@@ -349,21 +387,28 @@ class DeepwikiScraper:
             path (str, optional): The path to use for the directory structure. If None, only library_name is used.
         """
         # Create directory structure if it doesn't exist
+        # ディレクトリ構造が存在しない場合は作成する
         # Use current working directory instead of a fixed path
+        # 固定パスの代わりに現在の作業ディレクトリを使用する
         if path:
             # Use the path from the URL for the directory structure
+            # URLのパスをディレクトリ構造に使用する
             # The path is already the last part of the URL path (e.g., "cpython")
+            # パスはすでにURLパスの最後の部分（例：「cpython」）です
             dir_path = os.path.join(os.path.abspath(os.getcwd()), self.output_dir, path, "md")
         else:
             # Fallback to the old behavior
+            # 古い動作にフォールバックする
             dir_path = os.path.join(os.getcwd(), self.output_dir, library_name, "md")
         os.makedirs(dir_path, exist_ok=True)
 
         # Sanitize the title to create a valid filename
+        # タイトルをサニタイズして有効なファイル名を作成する
         filename = re.sub(r'[\\/*?:"<>|]', "", title).strip()
         filename = re.sub(r'\s+', '_', filename)
 
         # Remove the first 28 lines from the markdown content
+        # markdownコンテンツの最初の28行を削除する
         if markdown_content:
             lines = markdown_content.split('\n')
             if len(lines) > 28:
@@ -371,6 +416,7 @@ class DeepwikiScraper:
                 logger.info(f"Removed the first 28 lines from {filename}.md")
 
         # Save the Markdown content to a file
+        # Markdownコンテンツをファイルに保存する
         file_path = os.path.join(dir_path, f"{filename}.md")
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
@@ -378,17 +424,22 @@ class DeepwikiScraper:
         logger.info(f"Saved {file_path}")
 
         # Fix markdown links in the file immediately after saving
+        # 保存直後にファイル内のマークダウンリンクを修正する
         # Use a regular expression to replace links with URLs with links with empty parentheses
-        link_pattern = re.compile(r'\[([^\]]+)\]\((?![\s\)])[^\)]+\)')
+        # 正規表現を使用して、URL付きのリンクを空の括弧付きのリンクに置き換える
+        link_pattern = re.compile(r'\[([^\]]+)\]\((?![s\)])[^\)]+\)')
 
         # Read the file content
+        # ファイルの内容を読み取る
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Replace links with URLs with links with empty parentheses
+        # URL付きのリンクを空の括弧付きのリンクに置き換える
         modified_content = link_pattern.sub(r'[\1]()', content)
 
         # Write the modified content back to the file
+        # 変更された内容をファイルに書き戻す
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(modified_content)
 
@@ -405,40 +456,51 @@ class DeepwikiScraper:
         logger.info(f"Scraping library: {library_name}")
 
         # Extract the path from the URL
+        # URLからパスを抽出する
         parsed_url = urlparse(library_url)
         domain = parsed_url.netloc
         full_path = parsed_url.path.strip('/')  # Remove leading/trailing slashes
+        # 先頭/末尾のスラッシュを削除
 
         # Check if the domain is a placeholder or example domain
+        # ドメインがプレースホルダーまたはサンプルドメインであるかを確認する
         if "example.com" in domain or not domain:
             logger.error(f"Cannot scrape from placeholder or invalid domain: {domain}")
             logger.error(f"Please use a valid domain in the URL: {library_url}")
             return
 
         # Check if the domain is reachable
+        # ドメインが到達可能かを確認する
         if not self.is_domain_reachable(domain):
             logger.error(f"Cannot connect to domain: {domain}")
             logger.error(f"Please check your internet connection and make sure the domain is correct: {library_url}")
             return
 
         # Extract the appropriate part of the path
+        # パスの適切な部分を抽出する
         path_parts = full_path.split('/')
         if len(path_parts) > 2:
             # For URLs like "python/cpython/1-overview", extract "cpython"
+            # 「python/cpython/1-overview」のようなURLの場合、「cpython」を抽出する
             url_path = path_parts[-2]  # Get the second-to-last part of the path
+            # パスの最後から2番目の部分を取得する
         elif len(path_parts) > 1:
             url_path = path_parts[-1]  # Get the last part of the path
+            # パスの最後の部分を取得する
         else:
             url_path = full_path
 
         # Use library_name for the folder name if it's provided, otherwise use url_path
+        # library_nameが提供されている場合はフォルダ名に使用し、それ以外の場合はurl_pathを使用する
         folder_path = library_name if library_name else url_path
 
         # Prioritize using DirectMarkdownScraper (highest priority)
+        # DirectMarkdownScraperの使用を優先する（最高優先度）
         if self.use_direct_md_scraper:
             logger.info(f"Prioritizing DirectMarkdownScraper for {library_url}")
             try:
                 # Use DirectMarkdownScraper to get the content directly as Markdown
+                # DirectMarkdownScraperを使用してコンテンツを直接Markdownとして取得する
                 md_files = self.direct_md_scraper.scrape_library(library_url, library_name)
                 if md_files and len(md_files) > 0:
                     logger.info(
@@ -453,21 +515,26 @@ class DeepwikiScraper:
                 logger.info(f"Falling back to alternative scraping methods for {library_url}")
 
         # Prioritize using direct_scraper.py scraper (second priority)
+        # direct_scraper.pyスクレイパーの使用を優先する（第2優先度）
         if self.use_alternative_scraper:
             logger.info(f"Prioritizing scrape_deepwiki from direct_scraper.py for {library_url}")
             try:
                 # Use scrape_deepwiki to get the content
+                # scrape_deepwikiを使用してコンテンツを取得する
                 response = scrape_deepwiki(library_url, debug=False)
                 if response and response.status_code == 200:
                     # Parse the response content
+                    # レスポンスコンテンツを解析する
                     direct_html_content = response.text
                     # Extract the main content
+                    # メインコンテンツを抽出する
                     main_content = self.extract_content(direct_html_content, library_url)
                     if main_content:
                         markdown = self.html_to_markdown(main_content)
                         self.save_markdown(library_name, library_name, markdown, folder_path)
 
                         # Fix markdown links in the output directory
+                        # 出力ディレクトリ内のマークダウンリンクを修正する
                         md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
                         logger.info(f"Fixing markdown links in {md_directory}")
                         fix_markdown_links(md_directory)
@@ -483,31 +550,37 @@ class DeepwikiScraper:
                 logger.info(f"Falling back to standard scraping method for {library_url}")
 
         # If direct_scraper.py failed or is not used, fall back to the standard method
+        # direct_scraper.pyが失敗したか使用されていない場合、標準メソッドにフォールバックする
         # Get the library's main page
+        # ライブラリのメインページを取得する
         html_content = self.get_page_content(library_url)
         if not html_content:
             logger.error(f"Failed to fetch content for {library_name}")
             return
 
         # Extract navigation items, using the library URL as the base URL
+        # ライブラリURLをベースURLとして使用してナビゲーション項目を抽出する
         nav_items = self.extract_navigation_items(html_content, library_url)
 
         if not nav_items:
             logger.warning(f"No navigation items found for {library_name}")
 
             # If no navigation items and direct_scraper.py already failed, use the original method
+            # ナビゲーション項目がなく、direct_scraper.pyがすでに失敗している場合は、元のメソッドを使用する
             main_content = self.extract_content(html_content, library_url)
             if main_content:
                 markdown = self.html_to_markdown(main_content)
                 self.save_markdown(library_name, library_name, markdown, folder_path)
 
                 # Fix markdown links in the output directory
+                # 出力ディレクトリ内のマークダウンリンクを修正する
                 md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
                 logger.info(f"Fixing markdown links in {md_directory}")
                 fix_markdown_links(md_directory)
             return
 
         # Process each navigation item
+        # 各ナビゲーション項目を処理する
         for item in nav_items:
             title = item['title']
             url = item['url']
@@ -515,27 +588,33 @@ class DeepwikiScraper:
             logger.info(f"Processing: {title}")
 
             # Add a small delay to avoid overwhelming the server
+            # サーバーに過負荷をかけないように小さな遅延を追加する
             time.sleep(1)
 
             # Get the page content
+            # ページコンテンツを取得する
             page_html = self.get_page_content(url, library_name=library_name)
             if not page_html:
                 logger.error(f"Failed to fetch content for {title}")
                 continue
 
             # Extract the main content
+            # メインコンテンツを抽出する
             main_content = self.extract_content(page_html, url)
             if not main_content:
                 logger.warning(f"No main content found for {title}")
                 continue
 
             # Convert to Markdown
+            # Markdownに変換する
             markdown = self.html_to_markdown(main_content)
 
             # Save the Markdown content
+            # Markdownコンテンツを保存する
             self.save_markdown(library_name, title, markdown, folder_path)
 
         # After all navigation items are processed, fix markdown links in the output directory
+        # すべてのナビゲーション項目が処理された後、出力ディレクトリ内のマークダウンリンクを修正する
         md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
         logger.info(f"Fixing markdown links in {md_directory}")
         fix_markdown_links(md_directory)
@@ -569,10 +648,12 @@ if __name__ == "__main__":
     scraper.run(libraries)
 
     # Example of disabling the alternative scraper (direct_scraper.py will not be prioritized)
+    # 代替スクレイパーを無効にする例（direct_scraper.pyは優先されません）
     # scraper_without_alternative = DeepwikiScraper(use_alternative_scraper=False)
     # scraper_without_alternative.run(libraries)
 
     # Example of using the DirectMarkdownScraper (highest priority)
+    # DirectMarkdownScraperを使用する例（最高優先度）
     # scraper_with_direct_md = DeepwikiScraper(
     #     output_dir="DirectMarkdownDocuments",
     #     use_direct_scraper=False,
