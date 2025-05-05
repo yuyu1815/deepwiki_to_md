@@ -7,6 +7,8 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
+from .localization import get_message
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -196,14 +198,14 @@ class DeepwikiScraper:
             lines = markdown_content.split('\n')
             if len(lines) > 28:
                 markdown_content = '\n'.join(lines[28:])
-                logger.info(f"Removed the first 28 lines from {filename}.md")
+                logger.info(get_message('removed_first_lines', count=28, filename=filename))
 
         # Save the Markdown content to a file
         file_path = os.path.join(dir_path, f"{filename}.md")
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
 
-        logger.info(f"Saved {file_path}")
+        logger.info(get_message('saved_file', file_path=file_path))
 
     def scrape_library(self, library_name, library_url):
         """
@@ -213,7 +215,7 @@ class DeepwikiScraper:
             library_name (str): The name of the library.
             library_url (str): The URL of the library.
         """
-        logger.info(f"Scraping library: {library_name}")
+        logger.info(get_message('scraping_library', library_name=library_name))
 
         # Get the library's main page
         html_content = self.get_page_content(library_url)

@@ -10,6 +10,8 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
+from .localization import get_message
+
 # Import DirectDeepwikiScraper
 try:
     from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper
@@ -173,18 +175,18 @@ class DeepwikiScraper:
         """
         # Log the URL being fetched
         # 取得中のURLをログに出力
-        logger.info(f"Getting page content for URL: {url}")
+        logger.info(get_message('getting_page_content', url=url))
 
         # Use DirectDeepwikiScraper if enabled and library_name is provided
         # DirectDeepwikiScraperが有効でlibrary_nameが提供されている場合に使用
         if self.use_direct_scraper and library_name:
             try:
-                logger.info(f"Using DirectDeepwikiScraper for {url}")
+                logger.info(get_message('using_direct_scraper', url=url))
                 # Use DirectDeepwikiScraper with debug mode disabled
                 # デバッグモードを無効にしてDirectDeepwikiScraperを使用
                 md_file_path = self.direct_scraper.scrape_page(url, library_name, save_html=True, debug=False)
                 if md_file_path:
-                    logger.info(f"DirectDeepwikiScraper successfully scraped {url} to {md_file_path}")
+                    logger.info(get_message('direct_scraper_success', url=url, file_path=md_file_path))
                     # If DirectDeepwikiScraper was successful, we can return the HTML content from the regular request
                     # DirectDeepwikiScraperが成功した場合、通常のリクエストからHTMLコンテンツを返すことができる
                     # This ensures we have the HTML content for further processing
@@ -201,7 +203,7 @@ class DeepwikiScraper:
         retries = 0
         while retries <= max_retries:
             try:
-                logger.info(f"Fetching {url} with requests")
+                logger.info(get_message('fetching_with_requests', url=url))
                 response = self.session.get(url, timeout=10)
                 response.raise_for_status()
                 return response.text
@@ -307,7 +309,7 @@ class DeepwikiScraper:
         for selector in selectors:
             main_content = soup.select_one(selector)
             if main_content and len(main_content.get_text(strip=True)) > 0:
-                logger.info(f"セレクターを使用してコンテンツを発見: {selector}")
+                logger.info(get_message('content_found_with_selector', selector=selector))
                 # Content found using selector
                 break
 
@@ -364,7 +366,7 @@ class DeepwikiScraper:
         nav_ul = soup.select_one('ul.flex-1.flex-shrink-0.space-y-1.overflow-y-auto.py-1')
         if nav_ul:
             nav_ul.decompose()
-            logger.info("Navigation menu removed before Markdown conversion")
+            logger.info(get_message('navigation_menu_removed'))
 
         # Convert the modified HTML to string
         # 変更されたHTMLを文字列に変換する
@@ -413,7 +415,7 @@ class DeepwikiScraper:
             lines = markdown_content.split('\n')
             if len(lines) > 28:
                 markdown_content = '\n'.join(lines[28:])
-                logger.info(f"Removed the first 28 lines from {filename}.md")
+                logger.info(get_message('removed_first_lines', count=28, filename=filename))
 
         # Save the Markdown content to a file
         # Markdownコンテンツをファイルに保存する
@@ -421,7 +423,7 @@ class DeepwikiScraper:
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
 
-        logger.info(f"Saved {file_path}")
+        logger.info(get_message('saved_file', file_path=file_path))
 
         # Fix markdown links in the file immediately after saving
         # 保存直後にファイル内のマークダウンリンクを修正する
@@ -453,7 +455,7 @@ class DeepwikiScraper:
             library_name (str): The name of the library.
             library_url (str): The URL of the library.
         """
-        logger.info(f"Scraping library: {library_name}")
+        logger.info(get_message('scraping_library', library_name=library_name))
 
         # Extract the path from the URL
         # URLからパスを抽出する
@@ -497,14 +499,13 @@ class DeepwikiScraper:
         # Prioritize using DirectMarkdownScraper (highest priority)
         # DirectMarkdownScraperの使用を優先する（最高優先度）
         if self.use_direct_md_scraper:
-            logger.info(f"Prioritizing DirectMarkdownScraper for {library_url}")
+            logger.info(get_message('prioritizing_direct_md_scraper', url=library_url))
             try:
                 # Use DirectMarkdownScraper to get the content directly as Markdown
                 # DirectMarkdownScraperを使用してコンテンツを直接Markdownとして取得する
                 md_files = self.direct_md_scraper.scrape_library(library_url, library_name)
                 if md_files and len(md_files) > 0:
-                    logger.info(
-                        f"Successfully scraped {library_url} and {len(md_files)} pages using DirectMarkdownScraper")
+                    logger.info(get_message('direct_md_scraper_success', url=library_url, count=len(md_files)))
                     return
                 else:
                     logger.warning(f"Failed to scrape {library_url} using DirectMarkdownScraper")
@@ -512,12 +513,12 @@ class DeepwikiScraper:
                 logger.error(f"Error using DirectMarkdownScraper for {library_url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
-                logger.info(f"Falling back to alternative scraping methods for {library_url}")
+                logger.info(get_message('falling_back_to_alternative', url=library_url))
 
         # Prioritize using direct_scraper.py scraper (second priority)
         # direct_scraper.pyスクレイパーの使用を優先する（第2優先度）
         if self.use_alternative_scraper:
-            logger.info(f"Prioritizing scrape_deepwiki from direct_scraper.py for {library_url}")
+            logger.info(get_message('prioritizing_scrape_deepwiki', url=library_url))
             try:
                 # Use scrape_deepwiki to get the content
                 # scrape_deepwikiを使用してコンテンツを取得する
@@ -536,7 +537,7 @@ class DeepwikiScraper:
                         # Fix markdown links in the output directory
                         # 出力ディレクトリ内のマークダウンリンクを修正する
                         md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
-                        logger.info(f"Fixing markdown links in {md_directory}")
+                        logger.info(get_message('fixing_markdown_links', directory=md_directory))
                         fix_markdown_links(md_directory)
                         return
                     else:
@@ -547,7 +548,7 @@ class DeepwikiScraper:
                 logger.error(f"Error using scrape_deepwiki for {library_url}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
-                logger.info(f"Falling back to standard scraping method for {library_url}")
+                logger.info(get_message('falling_back_to_standard', url=library_url))
 
         # If direct_scraper.py failed or is not used, fall back to the standard method
         # direct_scraper.pyが失敗したか使用されていない場合、標準メソッドにフォールバックする
@@ -575,7 +576,7 @@ class DeepwikiScraper:
                 # Fix markdown links in the output directory
                 # 出力ディレクトリ内のマークダウンリンクを修正する
                 md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
-                logger.info(f"Fixing markdown links in {md_directory}")
+                logger.info(get_message('fixing_markdown_links', directory=md_directory))
                 fix_markdown_links(md_directory)
             return
 
@@ -585,7 +586,7 @@ class DeepwikiScraper:
             title = item['title']
             url = item['url']
 
-            logger.info(f"Processing: {title}")
+            logger.info(get_message('processing_title', title=title))
 
             # Add a small delay to avoid overwhelming the server
             # サーバーに過負荷をかけないように小さな遅延を追加する
@@ -616,7 +617,7 @@ class DeepwikiScraper:
         # After all navigation items are processed, fix markdown links in the output directory
         # すべてのナビゲーション項目が処理された後、出力ディレクトリ内のマークダウンリンクを修正する
         md_directory = os.path.join(os.getcwd(), self.output_dir, folder_path, "md")
-        logger.info(f"Fixing markdown links in {md_directory}")
+        logger.info(get_message('fixing_markdown_links', directory=md_directory))
         fix_markdown_links(md_directory)
 
     def run(self, libraries):
