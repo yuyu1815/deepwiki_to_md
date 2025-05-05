@@ -25,7 +25,7 @@ except ImportError:
             def __init__(self, *args, **kwargs):
                 pass
             def scrape_page(self, *args, **kwargs):
-                return None
+                raise NotImplementedError("DirectDeepwikiScraper is not available.")
 
 # Import scrape_deepwiki from direct_scraper.py
 try:
@@ -59,7 +59,7 @@ except ImportError:
             def __init__(self, *args, **kwargs):
                 pass
             def scrape_page(self, *args, **kwargs):
-                return None
+                raise NotImplementedError("DirectDeepwikiScraper is not available.")
 
 
 
