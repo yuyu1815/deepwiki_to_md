@@ -6,6 +6,8 @@ from urllib.parse import urlparse, urljoin
 import requests
 from bs4 import BeautifulSoup
 
+from .localization import get_message
+
 # Import fix_markdown_links function
 try:
     from deepwiki_to_md.fix_markdown_links import fix_markdown_links
@@ -413,8 +415,7 @@ class DirectMarkdownScraper:
                     'url': full_url
                 })
 
-        logger.info(f"抽出されたナビゲーション項目数: {len(nav_items)}")
-        # Number of extracted navigation items
+        logger.info(get_message('extracted_nav_items', count=len(nav_items)))
         return nav_items
 
     def scrape_library(self, library_url, library_name):
@@ -428,7 +429,7 @@ class DirectMarkdownScraper:
         Returns:
             list: 保存したMarkdownファイルのパスのリスト
         """
-        logger.info(f"ライブラリのスクレイピングを開始: {library_name} ({library_url})")
+        logger.info(get_message('starting_library_scrape', name=library_name, url=library_url))
         # Start scraping the library
 
         # ライブラリ名が指定されている場合はそれを使用し、そうでない場合はURLパスから取得
@@ -456,7 +457,7 @@ class DirectMarkdownScraper:
         # Scrape the main page
         main_page_paths = self.scrape_page(library_url, library_name)
         if not main_page_paths:
-            logger.error(f"メインページのスクレイピングに失敗しました: {library_url}")
+            logger.error(get_message('main_page_scrape_failed', url=library_url))
             # Failed to scrape the main page
             return []
 
@@ -469,7 +470,7 @@ class DirectMarkdownScraper:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
             })
             if response.status_code != 200:
-                logger.error(f"HTMLの取得に失敗しました: {library_url} (ステータスコード: {response.status_code})")
+                logger.error(get_message('html_fetch_failed', url=library_url, status_code=response.status_code))
                 # Failed to get HTML
                 return main_page_paths  # メインページのみ返す
 
@@ -478,12 +479,12 @@ class DirectMarkdownScraper:
             nav_items = self.extract_navigation_items(response.text, library_url)
 
             if not nav_items:
-                logger.warning(f"ナビゲーション項目が見つかりませんでした: {library_url}")
+                logger.warning(get_message('no_nav_items', url=library_url))
                 # Navigation items not found
                 # メインページのみの場合でもMarkdownリンクを修正
                 # Fix markdown links even if only the main page exists
                 md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
-                logger.info(f"Fixing markdown links in {md_directory}")
+                logger.info(get_message('starting_fix', directory=md_directory))
                 fix_markdown_links(md_directory)
                 return main_page_paths  # メインページのみ返す
 
@@ -497,7 +498,7 @@ class DirectMarkdownScraper:
                 title = item['title']
                 url = item['url']
 
-                logger.info(f"ナビゲーション項目をスクレイピング: {title} ({url})")
+                logger.info(get_message('scraping_nav_item', title=title, url=url))
                 # Scraping navigation item
 
                 # 小さな遅延を入れてサーバーに負荷をかけないようにする
@@ -510,21 +511,21 @@ class DirectMarkdownScraper:
                 if page_paths:
                     md_files.extend(page_paths)
                 else:
-                    logger.error(f"ナビゲーション項目のスクレイピングに失敗しました: {title} ({url})")
+                    logger.error(get_message('nav_item_scrape_failed', title=title, url=url))
 
             # スクレイピング完了後、Markdownリンクを修正
             md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
-            logger.info(f"Fixing markdown links in {md_directory}")
+            logger.info(get_message('starting_fix', directory=md_directory))
             fix_markdown_links(md_directory)
 
             return md_files
         except Exception as e:
-            logger.error(f"ナビゲーション項目の抽出中にエラーが発生しました: {e}")
+            logger.error(get_message('nav_extraction_error', error=e))
             import traceback
             logger.error(traceback.format_exc())
             # エラーが発生した場合でもMarkdownリンクを修正
             md_directory = os.path.join(os.getcwd(), self.output_dir, dir_path_part, "md")
-            logger.info(f"Fixing markdown links in {md_directory}")
+            logger.info(get_message('starting_fix', directory=md_directory))
             fix_markdown_links(md_directory)
             return main_page_paths  # エラーが発生した場合はメインページのみ返す
 

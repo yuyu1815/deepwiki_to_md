@@ -7,6 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
+from .localization import get_message
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -413,8 +415,7 @@ class DirectDeepwikiScraper:
                     'url': full_url
                 })
 
-        logger.info(f"抽出されたナビゲーション項目数: {len(nav_items)}")
-        # Number of extracted navigation items
+        logger.info(get_message('extracted_nav_items', count=len(nav_items)))
         return nav_items
 
     def scrape_library(self, library_url, library_name, save_html=True):
@@ -429,13 +430,13 @@ class DirectDeepwikiScraper:
         Returns:
             list: 保存したMarkdownファイルのパスのリスト
         """
-        logger.info(f"ライブラリのスクレイピングを開始: {library_name} ({library_url})")
+        logger.info(get_message('starting_library_scrape', name=library_name, url=library_url))
 
         # まずメインページをスクレイピング
         # First, scrape the main page
         main_page_path = self.scrape_page(library_url, library_name, save_html)
         if not main_page_path:
-            logger.error(f"メインページのスクレイピングに失敗しました: {library_url}")
+            logger.error(get_message('main_page_scrape_failed', url=library_url))
             return []
 
         # HTMLコンテンツを取得してナビゲーション項目を抽出
@@ -444,7 +445,7 @@ class DirectDeepwikiScraper:
             # Get HTML using a normal HTTP request
             response = scrape_deepwiki(library_url)
             if response.status_code != 200:
-                logger.error(f"HTMLの取得に失敗しました: {library_url} (ステータスコード: {response.status_code})")
+                logger.error(get_message('html_fetch_failed', url=library_url, status_code=response.status_code))
                 return [main_page_path]  # メインページのみ返す
                 # Return only the main page
 
@@ -453,7 +454,7 @@ class DirectDeepwikiScraper:
             nav_items = self.extract_navigation_items(response.text, library_url)
 
             if not nav_items:
-                logger.warning(f"ナビゲーション項目が見つかりませんでした: {library_url}")
+                logger.warning(get_message('no_nav_items', url=library_url))
                 return [main_page_path]  # メインページのみ返す
                 # Return only the main page
 
@@ -467,7 +468,7 @@ class DirectDeepwikiScraper:
                 title = item['title']
                 url = item['url']
 
-                logger.info(f"ナビゲーション項目をスクレイピング: {title} ({url})")
+                logger.info(get_message('scraping_nav_item', title=title, url=url))
 
                 # 小さな遅延を入れてサーバーに負荷をかけないようにする
                 # Add a small delay to avoid overloading the server
@@ -480,11 +481,11 @@ class DirectDeepwikiScraper:
                 if page_path:
                     md_files.append(page_path)
                 else:
-                    logger.error(f"ナビゲーション項目のスクレイピングに失敗しました: {title} ({url})")
+                    logger.error(get_message('nav_item_scrape_failed', title=title, url=url))
 
             return md_files
         except Exception as e:
-            logger.error(f"ナビゲーション項目の抽出中にエラーが発生しました: {e}")
+            logger.error(get_message('nav_extraction_error', error=e))
             import traceback
             logger.error(traceback.format_exc())
             return [main_page_path]  # エラーが発生した場合はメインページのみ返す

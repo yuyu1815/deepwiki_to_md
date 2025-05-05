@@ -4,42 +4,43 @@ import sys
 import requests
 
 from .deepwiki_to_md import DeepwikiScraper
+from .localization import get_message
 
 
 def parse_arguments():
     """Parse command line arguments."""
     # """コマンドライン引数を解析する。"""
-    parser = argparse.ArgumentParser(description='Scrape deepwiki and convert to Markdown.')
+    parser = argparse.ArgumentParser(description=get_message('scraper_description'))
 
     parser.add_argument('--library', '-l', action='append', nargs=2, metavar=('NAME', 'URL'),
-                        help='Library name and URL to scrape. Can be specified multiple times.')
+                        help=get_message('library_help'))
 
     parser.add_argument('--output-dir', '-o', default='Documents',
-                        help='Output directory for Markdown files (default: Documents)')
+                        help=get_message('output_dir_help', default='Documents'))
 
     parser.add_argument('--use-direct-scraper', action='store_true',
-                        help='Use DirectDeepwikiScraper after dynamic page loading (default: True)')
+                        help=get_message('use_direct_scraper_help'))
 
     parser.add_argument('--no-direct-scraper', action='store_true',
-                        help='Disable DirectDeepwikiScraper after dynamic page loading')
+                        help=get_message('no_direct_scraper_help'))
 
     parser.add_argument('--use-alternative-scraper', action='store_true',
-                        help='Use scrape_deepwiki from direct_scraper.py for pages without navigation items (default: True)')
+                        help=get_message('use_alternative_scraper_help'))
 
     parser.add_argument('--no-alternative-scraper', action='store_true',
-                        help='Disable scrape_deepwiki from direct_scraper.py for pages without navigation items')
+                        help=get_message('no_alternative_scraper_help'))
 
     parser.add_argument('--use-direct-md-scraper', action='store_true',
-                        help='Use DirectMarkdownScraper to fetch Markdown directly (default: False)')
+                        help=get_message('use_direct_md_scraper_help'))
 
     parser.add_argument('--no-direct-md-scraper', action='store_true',
-                        help='Disable DirectMarkdownScraper')
+                        help=get_message('no_direct_md_scraper_help'))
 
     # Selenium-related arguments removed - only static requests are supported
     # Selenium関連の引数は削除されました - 静的リクエストのみがサポートされています
 
     parser.add_argument('library_url', nargs='?',
-                        help='URL of the library to scrape (alternative to --library)')
+                        help=get_message('library_url_help'))
 
     args = parser.parse_args()
 
@@ -56,7 +57,7 @@ def parse_arguments():
     # Validate arguments
     # 引数の検証
     if not args.library and not args.library_url:
-        parser.error("Either a library URL or at least one library must be specified using --library")
+        parser.error(get_message('library_required_error'))
 
     return args
 
@@ -96,10 +97,10 @@ def main():
 
     try:
         scraper.run(libraries)
-        print(f"Scraping completed successfully. Markdown files saved to {args.output_dir}")
+        print(get_message('scraping_completed', output_dir=args.output_dir))
         return 0
     except requests.exceptions.RequestException as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(get_message('error', error=e), file=sys.stderr)
         return 1
 
 
