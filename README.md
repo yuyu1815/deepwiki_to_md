@@ -90,6 +90,28 @@ python -m deepwiki_to_md.run_scraper --library "library_name" "https://deepwiki.
 Note: The output directory will be created in the current working directory where the command is executed, not in the
 package installation directory.
 
+### Repository Creation Tool
+
+The package also includes a tool to create repository requests by setting an email and submitting a form:
+
+If installed from PyPI, you can use the command-line tool:
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com"
+```
+
+To run in headless mode (without opening a browser window):
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com" --headless
+```
+
+If installed from source, you can run the script directly:
+
+```bash
+python -m deepwiki_to_md.create --url "https://example.com/repository/create" --email "user@example.com"
+```
+
 ### Using the Python API
 
 You can also use the DeepwikiScraper class directly in your Python code:
@@ -99,6 +121,8 @@ from deepwiki_to_md import DeepwikiScraper
 # Import specific scraper classes if needed for direct use
 from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper  # For HTML -> MD
 from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper  # For Direct MD
+# Import the RepositoryCreator class for repository creation
+from deepwiki_to_md.create import RepositoryCreator
 
 # Create a scraper instance (DirectMarkdownScraper is used by default)
 scraper = DeepwikiScraper(output_dir="MyDocuments")
@@ -155,6 +179,25 @@ direct_md_scraper.scrape_page(
    "https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization",
     "python_bytecode"  # Library name/path part for output folder
 )
+
+# --- Using the RepositoryCreator for repository creation requests ---
+# Create a RepositoryCreator instance
+creator = RepositoryCreator(headless=False)  # Set headless=True to run without browser UI
+
+try:
+  # Send a repository creation request
+  success = creator.create(
+    url="https://example.com/repository/create",
+    email="user@example.com"
+  )
+
+  if success:
+    print("Repository creation request sent successfully")
+  else:
+    print("Failed to send repository creation request")
+finally:
+  # Always close the browser when done
+  creator.close()
 ```
 
 ### Command-line Arguments
@@ -182,6 +225,12 @@ For `deepwiki-to-md` or `python -m deepwiki_to_md.run_scraper`:
    Markdown) is used.
 3. If neither is specified, DirectMarkdownScraper (Direct Markdown) is used by default.
 4. The `--use-alternative-scraper` flag controls a fallback mechanism within the chosen primary scraper.
+
+For `deepwiki-create` or `python -m deepwiki_to_md.create`:
+
+- `--url` (required): The URL of the repository creation page.
+- `--email` (required): The email address to notify.
+- `--headless`: Run the browser in headless mode (without UI).
 
 ### Examples (Command Line)
 
@@ -226,6 +275,18 @@ Disable the alternative scraper fallback:
 
 ```bash
 python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python/cpython" --no-alternative-scraper
+```
+
+Using the repository creation tool:
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com"
+```
+
+Using the repository creation tool in headless mode:
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com" --headless
 ```
 
 ### Usage with run_direct_scraper.py

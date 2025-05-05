@@ -422,7 +422,7 @@ def parse_arguments():
     return args
 
 
-if __name__ == "__main__":
+def main():
     # コマンドライン引数を解析
     # Parse command line arguments
     args = parse_arguments()
@@ -482,6 +482,8 @@ if __name__ == "__main__":
             # ブラウザを閉じる
             # Close the browser
             scraper.close()
+if __name__ == "__main__":
+    main()
 
 # 使用例:
 # チャットモード (Chat mode):

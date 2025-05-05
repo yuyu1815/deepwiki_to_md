@@ -30,10 +30,14 @@ setup(
     install_requires=[
         "requests>=2.31.0",
         "beautifulsoup4>=4.12.3",
+        "selenium>=4.0.0",
+        "webdriver-manager>=3.8.0",
     ],
     entry_points={
         "console_scripts": [
             "deepwiki-to-md=deepwiki_to_md.run_scraper:main",
+            "deepwiki-create=deepwiki_to_md.create:main",
+            "deepwiki-chat=deepwiki_to_md.chat:main",
         ],
     },
 )

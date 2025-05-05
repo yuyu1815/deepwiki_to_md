@@ -86,6 +86,28 @@ python -m deepwiki_to_md.run_scraper --library "library_name" "https://deepwiki.
 
 注意：出力ディレクトリは、コマンドが実行される現在の作業ディレクトリに作成されます（パッケージのインストールディレクトリではありません）。
 
+### リポジトリ作成ツール
+
+このパッケージには、メールアドレスを設定してフォームを送信することでリポジトリ作成リクエストを行うツールも含まれています：
+
+PyPIからインストールした場合、コマンドラインツールを使用できます：
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com"
+```
+
+ヘッドレスモードで実行する場合（ブラウザウィンドウを開かずに実行）：
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com" --headless
+```
+
+ソースからインストールした場合、スクリプトを直接実行できます：
+
+```bash
+python -m deepwiki_to_md.create --url "https://example.com/repository/create" --email "user@example.com"
+```
+
 ### Python APIの使用
 
 DeepwikiScraperクラスを直接Pythonコードで使用することもできます：
@@ -95,6 +117,8 @@ from deepwiki_to_md import DeepwikiScraper
 # 直接使用するために特定のスクレイパークラスをインポート（必要に応じて）
 from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper  # HTML -> MDの場合
 from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper  # 直接MDの場合
+# リポジトリ作成用のRepositoryCreatorクラスをインポート
+from deepwiki_to_md.create import RepositoryCreator
 
 # スクレイパーインスタンスを作成（デフォルトではDirectMarkdownScraperが使用される）
 scraper = DeepwikiScraper(output_dir="MyDocuments")
@@ -151,6 +175,25 @@ direct_md_scraper.scrape_page(
     "https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization",
     "python_bytecode"  # 出力フォルダのライブラリ名/パス部分
 )
+
+# --- リポジトリ作成リクエスト用のRepositoryCreatorを使用 ---
+# RepositoryCreatorインスタンスを作成
+creator = RepositoryCreator(headless=False)  # headless=TrueでブラウザのUIなしで実行
+
+try:
+    # リポジトリ作成リクエストを送信
+    success = creator.create(
+        url="https://example.com/repository/create",
+        email="user@example.com"
+    )
+
+    if success:
+        print("リポジトリ作成リクエストが正常に送信されました")
+    else:
+        print("リポジトリ作成リクエストの送信に失敗しました")
+finally:
+    # 終了時には必ずブラウザを閉じる
+    creator.close()
 ```
 
 ### コマンドライン引数
@@ -176,6 +219,12 @@ direct_md_scraper.scrape_page(
    が指定されていない場合）、DirectMarkdownScraper（直接Markdown）が使用されます。
 3. どちらも指定されていない場合、デフォルトではDirectMarkdownScraper（直接Markdown）が使用されます。
 4. `--use-alternative-scraper`フラグは、選択されたプライマリスクレイパー内のフォールバックメカニズムを制御します。
+
+`deepwiki-create`または`python -m deepwiki_to_md.create`の場合：
+
+- `--url`（必須）：リポジトリ作成ページのURL。
+- `--email`（必須）：通知先メールアドレス。
+- `--headless`：ヘッドレスモードでブラウザを実行（UIなし）。
 
 ### 例（コマンドライン）
 
@@ -220,6 +269,18 @@ python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python/cpython" --use
 
 ```bash
 python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python/cpython" --no-alternative-scraper
+```
+
+リポジトリ作成ツールを使用：
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com"
+```
+
+ヘッドレスモードでリポジトリ作成ツールを使用：
+
+```bash
+deepwiki-create --url "https://example.com/repository/create" --email "user@example.com" --headless
 ```
 
 ### run_direct_scraper.pyの使用
