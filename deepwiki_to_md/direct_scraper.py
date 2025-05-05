@@ -150,31 +150,44 @@ class DirectDeepwikiScraper:
         selectors = [
             'main article',  # 元のセレクター
             # Original selector
-            'main',          # main要素
+            'main',
+            # main要素
             # main element
-            'main .content', # メインコンテンツの一般的なパターン
+            'main .content',
+            # メインコンテンツの一般的なパターン
             # Common pattern for main content
-            'article',       # article要素
+            'article',
+            # article要素
             # article element
-            '.content',      # contentクラス
+            '.content',
+            # contentクラス
             # content class
-            '.article-content', # article-contentクラス
+            '.article-content',
+            # article-contentクラス
             # article-content class
-            '#content',      # content ID
+            '#content',
             # content ID
-            '.markdown-body', # markdownコンテンツの一般的なクラス
+            # content ID
+            '.markdown-body',
+            # markdownコンテンツの一般的なクラス
             # Common class for markdown content
-            '.documentation-content', # ドキュメンテーションコンテンツの一般的なクラス
+            '.documentation-content',
+            # ドキュメンテーションコンテンツの一般的なクラス
             # Common class for documentation content
-            'div.container div.row div.col', # Bootstrapのようなレイアウト
+            'div.container div.row div.col',
+            # Bootstrapのようなレイアウト
             # Bootstrap-like layout
-            '#__next', # Next.jsアプリケーションのルート要素
+            '#__next',
+            # Next.jsアプリケーションのルート要素
             # Root element of Next.js application
-            'div[role="main"]', # メインコンテンツのrole属性
+            'div[role="main"]',
+            # メインコンテンツのrole属性
             # role attribute for main content
-            '.prose', # Tailwind CSSのproseクラス
+            '.prose',
+            # Tailwind CSSのproseクラス
             # prose class in Tailwind CSS
-            '.page-content' # ページコンテンツクラス
+            '.page-content'
+            # ページコンテンツクラス
             # page content class
         ]
 
@@ -207,7 +220,8 @@ class DirectDeepwikiScraper:
                     logger.info(f"body直下のdiv要素数: {len(divs)}")
                     # 各divのテキスト長をログに出力
                     # Log the text length of each div
-                    for i, div in enumerate(divs[:5]):  # 最初の5つだけログに出力
+                    for i, div in enumerate(divs[:5]):
+                        # 最初の5つだけログに出力
                         # Log only the first 5
                         text_len = len(div.get_text(strip=True))
                         logger.debug(f"div[{i}] テキスト長: {text_len}")

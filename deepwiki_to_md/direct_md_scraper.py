@@ -223,9 +223,13 @@ class DirectMarkdownScraper:
         # 既に同じ内容のファイルが保存されているか確認
         # Check if a file with the same content has already been saved
         if self.saved_content_hash is not None and self.saved_content_hash == content_hash:
-            logger.info(f"同じ内容のファイルが既に保存されているためスキップ: {filename}.md")
-            # Skipping as a file with the same content has already been saved: {filename}.md
-            return []
+            logger.info(
+                f"同じ内容のファイルが既に保存されているため保存をスキップしますが処理は続行します: {filename}.md")
+            # Skipping saving as a file with the same content has already been saved, but continuing processing: {filename}.md
+            # 空のファイルリストを返す代わりに、ダミーのファイルパスを返して処理を続行
+            # Instead of returning an empty list, return a dummy file path to continue processing
+            dummy_path = os.path.join(output_path, f"{filename}.md")
+            return [dummy_path]
 
         # ハッシュを更新
         # Update the hash
