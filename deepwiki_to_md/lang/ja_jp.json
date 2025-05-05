@@ -58,5 +58,6 @@
   "repo_creation_description": "リポジトリ作成リクエスト",
   "repo_url_help": "リポジトリ作成ページのURL",
   "repo_email_help": "通知先メールアドレス",
-  "headless_mode_help": "ヘッドレスモードを有効にする"
+  "headless_mode_help": "ヘッドレスモードを有効にする",
+  "success_message_wait_failed": "成功メッセージの待機に失敗しました。"
 }

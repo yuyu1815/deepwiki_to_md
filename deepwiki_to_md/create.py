@@ -1,8 +1,8 @@
 import argparse
 import logging
-import time
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -78,9 +78,14 @@ class RepositoryCreator:
 
             # 成功メッセージまたは次のページへの遷移を待機
             # Wait for success message or transition to next page
-            time.sleep(3)
-
-            return True
+            try:
+                success_element = self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, ".success-message"))  # 実際のセレクターに置き換えてください
+                )
+                return True
+            except TimeoutException:
+                logger.error(get_message("error", error=get_message("success_message_wait_failed")))
+                return False
 
         except Exception as e:
             logger.error(get_message("error", error=str(e)))

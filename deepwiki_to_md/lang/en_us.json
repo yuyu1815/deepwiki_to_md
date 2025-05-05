@@ -58,5 +58,6 @@
   "repo_creation_description": "Repository Creation Request",
   "repo_url_help": "URL of the repository creation page",
   "repo_email_help": "Email to notify",
-  "headless_mode_help": "Enable headless mode"
+  "headless_mode_help": "Enable headless mode",
+  "success_message_wait_failed": "Failed to wait for success message."
 }
