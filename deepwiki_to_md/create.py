@@ -8,6 +8,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from deepwiki_to_md.localization import get_message
+
 # ログ設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -48,8 +50,7 @@ class RepositoryCreator:
             bool: True if the request was submitted successfully, False otherwise.
         """
         try:
-            logger.info(f"URLにアクセス中: {url}")
-            logger.info(f"Accessing URL: {url}")
+            logger.info(get_message("accessing_url", url=url))
             self.driver.get(url)
 
             # メールアドレス入力フィールドを待機して取得
@@ -62,8 +63,7 @@ class RepositoryCreator:
             # Enter the email address
             email_input.clear()
             email_input.send_keys(email)
-            logger.info(f"メールアドレス入力: {email}")
-            logger.info(f"Email entered: {email}")
+            logger.info(get_message("email_entered", email=email))
 
             # 送信ボタンを探してクリック
             # Find and click the submit button
@@ -74,8 +74,7 @@ class RepositoryCreator:
             # ボタンをクリック
             # Click the button
             submit_button.click()
-            logger.info("送信ボタンをクリック")
-            logger.info("Submit button clicked")
+            logger.info(get_message("submit_button_clicked"))
 
             # 成功メッセージまたは次のページへの遷移を待機
             # Wait for success message or transition to next page
@@ -84,8 +83,7 @@ class RepositoryCreator:
             return True
 
         except Exception as e:
-            logger.error(f"エラーが発生しました: {e}")
-            logger.error(f"An error occurred: {e}")
+            logger.error(get_message("error", error=str(e)))
             return False
 
     def close(self):
@@ -100,14 +98,14 @@ def parse_arguments():
     コマンドライン引数を解析する
     Parse command line arguments
     """
-    parser = argparse.ArgumentParser(description="Repository Creation Request")
+    parser = argparse.ArgumentParser(description=get_message("repo_creation_description"))
 
     parser.add_argument("--url", required=True,
-                        help="リポジトリ作成ページのURL (URL of the repository creation page)")
+                        help=get_message("repo_url_help"))
     parser.add_argument("--email", required=True,
-                        help="通知先メールアドレス (Email to notify)")
+                        help=get_message("repo_email_help"))
     parser.add_argument("--headless", action="store_true",
-                        help="ヘッドレスモードを有効にする (Enable headless mode)")
+                        help=get_message("headless_mode_help"))
 
     return parser.parse_args()
 
@@ -128,20 +126,16 @@ def main():
     try:
         # リポジトリ作成リクエストを送信
         # Send repository creation request
-        print(f"URLにアクセス中: {args.url}")
-        print(f"Accessing URL: {args.url}")
-        print(f"メールアドレス: {args.email}")
-        print(f"Email: {args.email}")
+        print(get_message("accessing_url", url=args.url))
+        print(get_message("email_info", email=args.email))
 
         success = creator.create(url=args.url, email=args.email)
 
         if success:
-            print("リポジトリ作成リクエストを送信しました")
-            print("Repository creation request sent")
+            print(get_message("repo_request_sent"))
             return 0
         else:
-            print("リポジトリ作成リクエストの送信に失敗しました")
-            print("Failed to send repository creation request")
+            print(get_message("repo_request_failed"))
             return 1
 
     finally:
