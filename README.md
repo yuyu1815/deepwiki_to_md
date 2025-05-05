@@ -160,7 +160,7 @@ python example.py
 
 - `library_url`: URL of the library to scrape (can be provided as a positional argument).
 - `--library`, `-l`: Library name and URL to scrape. Can be specified multiple times for different libraries. Format:
-  `--library NAME URL`.
+  `--library NAME URL` (NAME and URL are placeholders).
 - `--output-dir`, `-o`: Output directory for Markdown files (default: `Documents`).
 - `--use-direct-scraper`: Use `DirectDeepwikiScraper` (HTML to Markdown conversion). Overrides `--use-direct-md-scraper`
   if both are specified.
