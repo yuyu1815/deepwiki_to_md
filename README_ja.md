@@ -13,6 +13,7 @@ Deepwiki サイトからコンテンツをスクレイピングし、Markdown �
 - 複数のライブラリのスクレイピングに対応
 - 静的リクエストによるスクレイピングに対応
 - 信頼性向上と直接Markdown取得のための直接スクレイピングメソッドを提供
+- Markdown ファイルを書式を保持したまま YAML 形式に変換
 
 ## 必要要件
 
@@ -305,6 +306,55 @@ Python スクリプト (`deepwiki_to_md/deepwiki_to_md.py`, `deepwiki_to_md/dire
 - HTML から Markdown への変換オプション (`markdownify` の設定)。
 - 出力ファイルの命名規則。
 - リクエストヘッダーと遅延。
+
+## Markdown から YAML への変換
+
+このツールは、Markdown ファイルを書式を保持したまま YAML 形式に変換する機能も提供しています。これは特に
+LLM（大規模言語モデル）にとって最適な読み込み形式である YAML を生成するのに役立ちます。
+
+### 変換ツールの使用方法
+
+コマンドラインインターフェースを使用して Markdown ファイルを YAML に変換できます：
+
+```
+python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md"
+```
+
+カスタム出力ディレクトリを指定するには：
+
+```
+python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md" --output "path/to/output/directory"
+```
+
+### Python API の使用
+
+Python コード内で変換関数を直接使用することもできます：
+
+```python
+from deepwiki_to_md.md_to_yaml import convert_md_file_to_yaml
+
+# Markdown ファイルを YAML に変換
+yaml_file_path = convert_md_file_to_yaml("path/to/markdown/file.md")
+
+# カスタム出力ディレクトリを指定して Markdown ファイルを YAML に変換
+yaml_file_path = convert_md_file_to_yaml("path/to/markdown/file.md", "path/to/output/directory")
+```
+
+### YAML 形式
+
+変換された YAML ファイルには以下が含まれます：
+
+- `timestamp`: 変換時刻
+- `title`: Markdown ファイルの最初のヘッダーから抽出されたタイトル
+- `content`: 書式が保持された完全な Markdown コンテンツ
+- `links`: Markdown から抽出されたリンクのリスト
+- `metadata`: 以下を含む追加情報：
+    - `headers`: Markdown 内のすべてのヘッダーのリスト
+    - `paragraphs_count`: 段落の数
+    - `lists_count`: リストの数
+    - `tables_count`: テーブルの数
+
+この構造化された形式により、元の Markdown 書式を保持しながら、LLM がコンテンツを処理し理解しやすくなります。
 
 ## ライセンス
 

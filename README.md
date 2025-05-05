@@ -13,6 +13,7 @@ A Python tool to scrape content from deepwiki sites and convert it to Markdown f
 - Supports scraping multiple libraries
 - Supports static page scraping with requests
 - Offers direct scraping methods for improved reliability and direct Markdown fetching
+- Converts Markdown files to YAML format while preserving formatting
 
 ## Requirements
 
@@ -308,6 +309,56 @@ You can modify the Python scripts (`deepwiki_to_md/deepwiki_to_md.py`, `deepwiki
 - HTML to Markdown conversion options (`markdownify` settings).
 - Output file naming conventions.
 - Request headers and delays.
+
+## Markdown to YAML Conversion
+
+The tool also provides functionality to convert Markdown files to YAML format while preserving the formatting. This is
+particularly useful for LLMs (Large Language Models) as YAML is an optimal format for them to read.
+
+### Using the Conversion Tool
+
+You can convert Markdown files to YAML using the command-line interface:
+
+```
+python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md"
+```
+
+To specify a custom output directory:
+
+```
+python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md" --output "path/to/output/directory"
+```
+
+### Using the Python API
+
+You can also use the conversion function directly in your Python code:
+
+```python
+from deepwiki_to_md.md_to_yaml import convert_md_file_to_yaml
+
+# Convert a Markdown file to YAML
+yaml_file_path = convert_md_file_to_yaml("path/to/markdown/file.md")
+
+# Convert a Markdown file to YAML with a custom output directory
+yaml_file_path = convert_md_file_to_yaml("path/to/markdown/file.md", "path/to/output/directory")
+```
+
+### YAML Format
+
+The converted YAML file includes:
+
+- `timestamp`: The time of conversion
+- `title`: Extracted from the first header in the Markdown file
+- `content`: The full Markdown content with formatting preserved
+- `links`: A list of links extracted from the Markdown
+- `metadata`: Additional information including:
+    - `headers`: A list of all headers in the Markdown
+    - `paragraphs_count`: The number of paragraphs
+    - `lists_count`: The number of lists
+    - `tables_count`: The number of tables
+
+This structured format makes it easier for LLMs to process and understand the content while preserving the original
+Markdown formatting.
 
 ## License
 
