@@ -48,5 +48,16 @@
   "prioritizing_scrape_deepwiki": "{url}に対してdirect_scraper.pyのscrape_deepwikiを優先しています",
   "fixing_markdown_links": "{directory}内のマークダウンリンクを修正しています",
   "falling_back_to_standard": "{url}に対して標準スクレイピング方法にフォールバックしています",
-  "processing_title": "処理中: {title}"
+  "processing_title": "処理中: {title}",
+  "accessing_url": "URLにアクセス中: {url}",
+  "email_entered": "メールアドレス入力: {email}",
+  "submit_button_clicked": "送信ボタンをクリック",
+  "email_info": "メールアドレス: {email}",
+  "repo_request_sent": "リポジトリ作成リクエストを送信しました",
+  "repo_request_failed": "リポジトリ作成リクエストの送信に失敗しました",
+  "repo_creation_description": "リポジトリ作成リクエスト",
+  "repo_url_help": "リポジトリ作成ページのURL",
+  "repo_email_help": "通知先メールアドレス",
+  "headless_mode_help": "ヘッドレスモードを有効にする",
+  "success_message_wait_failed": "成功メッセージの待機に失敗しました。"
 }

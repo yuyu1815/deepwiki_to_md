@@ -48,5 +48,16 @@
   "prioritizing_scrape_deepwiki": "Prioritizing scrape_deepwiki from direct_scraper.py for {url}",
   "fixing_markdown_links": "Fixing markdown links in {directory}",
   "falling_back_to_standard": "Falling back to standard scraping method for {url}",
-  "processing_title": "Processing: {title}"
+  "processing_title": "Processing: {title}",
+  "accessing_url": "Accessing URL: {url}",
+  "email_entered": "Email entered: {email}",
+  "submit_button_clicked": "Submit button clicked",
+  "email_info": "Email: {email}",
+  "repo_request_sent": "Repository creation request sent",
+  "repo_request_failed": "Failed to send repository creation request",
+  "repo_creation_description": "Repository Creation Request",
+  "repo_url_help": "URL of the repository creation page",
+  "repo_email_help": "Email to notify",
+  "headless_mode_help": "Enable headless mode",
+  "success_message_wait_failed": "Failed to wait for success message."
 }
