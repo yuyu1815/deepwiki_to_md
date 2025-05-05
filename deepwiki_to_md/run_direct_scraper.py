@@ -8,6 +8,7 @@ from .direct_scraper import DirectDeepwikiScraper
 
 def parse_arguments():
     """コマンドライン引数を解析する。"""
+    # """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='DeepwikiからMarkdownを直接取得して保存する。')
 
     parser.add_argument('--library', '-l', action='append', nargs=2, metavar=('NAME', 'URL'),
@@ -25,14 +26,17 @@ def parse_arguments():
     args = parser.parse_args()
 
     # ライブラリURLが位置引数として提供された場合の処理
+    # Handle the case where a library URL is provided as a positional argument
     if args.library_url and not args.library:
         # URLパスからライブラリ名を抽出
+        # Extract library name from URL path
         from urllib.parse import urlparse
         path = urlparse(args.library_url).path.strip('/')
         library_name = path.split('/')[-1] if path else 'library'
         args.library = [(library_name, args.library_url)]
 
     # 引数の検証
+    # Validate arguments
     if not args.library and not args.library_url:
         parser.error("ライブラリURLまたは--libraryオプションでライブラリを少なくとも1つ指定してください")
 
@@ -41,21 +45,25 @@ def parse_arguments():
 
 def main():
     """スクレイパーを実行するメイン関数。"""
+    # """Main function to run the scraper."""
     args = parse_arguments()
 
     # DirectDeepwikiScraperが期待する形式にライブラリをフォーマット
+    # Format libraries as expected by DirectDeepwikiScraper
     libraries = [
         {"name": name, "url": url}
         for name, url in args.library
     ]
 
     # スクレイパーを作成して実行
+    # Create and run the scraper
     scraper = DirectDeepwikiScraper(args.output_dir)
 
     try:
         results = scraper.run(libraries)
         
         # 結果の表示
+        # Display results
         success_count = sum(1 for lib in results.values() if lib["success"])
         print(f"スクレイピングが完了しました。{len(libraries)}個中{success_count}個のライブラリが成功しました。")
         print(f"Markdownファイルは{args.output_dir}に保存されました。")
@@ -68,3 +76,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+# DeepwikiからMarkdownを直接取得して保存する。
+# Get and save Markdown directly from Deepwiki.

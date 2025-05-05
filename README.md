@@ -12,6 +12,8 @@ A Python tool to scrape content from deepwiki sites and convert it to Markdown f
 - Saves the converted files in an organized directory structure
 - Supports scraping multiple libraries
 - Supports static page scraping with requests
+- Offers direct scraping methods for improved reliability and direct Markdown fetching
+- Converts Markdown files to YAML format while preserving formatting
 
 ## Requirements
 
@@ -20,6 +22,7 @@ A Python tool to scrape content from deepwiki sites and convert it to Markdown f
     - requests
     - beautifulsoup4
     - argparse
+  - markdownify
 
 ## Installation
 
@@ -75,17 +78,17 @@ the package installation directory.
 
 ### Using the Python API
 
-You can also use the DeepwikiScraper class directly in your Python code. See `example.py` for a complete example:
+You can also use the `DeepwikiScraper` class directly in your Python code. See `example.py` for a complete example:
 
 ```python
 from deepwiki_to_md import DeepwikiScraper
 from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper
 from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper
 
-# Create a scraper instance
+# Create a scraper instance (default uses DirectMarkdownScraper)
 scraper = DeepwikiScraper(output_dir="MyDocuments")
 
-# Scrape a library
+# Scrape a library using the default (DirectMarkdownScraper)
 scraper.scrape_library("python", "https://deepwiki.com/python")
 
 # Create another scraper with a different output directory
@@ -94,18 +97,39 @@ other_scraper = DeepwikiScraper(output_dir="OtherDocuments")
 # Scrape another library
 other_scraper.scrape_library("javascript", "https://deepwiki.example.com/javascript")
 
-# Create a direct scraper instance
-direct_scraper = DirectDeepwikiScraper(output_dir="DirectScraped")
+# --- Using DirectDeepwikiScraper (HTML to Markdown) ---
+# Create a scraper instance explicitly using DirectDeepwikiScraper
+html_scraper = DeepwikiScraper(
+    output_dir="HtmlScrapedDocuments",
+    use_direct_scraper=True,  # Enable DirectDeepwikiScraper
+    use_alternative_scraper=False,
+    use_direct_md_scraper=False
+)
+html_scraper.scrape_library("go", "https://deepwiki.com/go")
 
-# Scrape a specific page directly
-direct_scraper.scrape_page(
+# --- Using DirectMarkdownScraper (Direct Markdown Fetching) ---
+# Create a scraper instance explicitly using DirectMarkdownScraper
+md_scraper = DeepwikiScraper(
+    output_dir="DirectMarkdownDocuments",
+    use_direct_scraper=False,
+    use_alternative_scraper=False,
+    use_direct_md_scraper=True  # Enable DirectMarkdownScraper (this is the default)
+)
+md_scraper.scrape_library("rust", "https://deepwiki.com/rust")
+
+# --- Using the individual direct scrapers --- 
+# Create a DirectDeepwikiScraper instance (HTML to Markdown)
+direct_html_scraper = DirectDeepwikiScraper(output_dir="DirectHtmlScraped")
+
+# Scrape a specific page directly (HTML to Markdown)
+direct_html_scraper.scrape_page(
     "https://deepwiki.com/python/cpython/2.1-bytecode-interpreter-and-optimization",
     "python_bytecode",
-    save_html=True
+    save_html=True  # Optionally save the original HTML
 )
 
-# Create a direct Markdown scraper instance (fetches Markdown directly)
-direct_md_scraper = DirectMarkdownScraper(output_dir="DirectMarkdownDocuments")
+# Create a DirectMarkdownScraper instance (Direct Markdown Fetching)
+direct_md_scraper = DirectMarkdownScraper(output_dir="DirectMarkdownFetched")
 
 # Scrape a specific page directly as Markdown
 direct_md_scraper.scrape_page(
@@ -113,17 +137,14 @@ direct_md_scraper.scrape_page(
    "python_bytecode"
 )
 
-# You can also use the DeepwikiScraper with direct Markdown scraping enabled
-md_scraper = DeepwikiScraper(
-   output_dir="DirectMarkdownDocuments",
-   use_direct_scraper=False,
-   use_alternative_scraper=False,
-   use_direct_md_scraper=True  # Enable direct Markdown scraping
-)
-md_scraper.scrape_library("python", "https://deepwiki.com/python/cpython")
+# You can also use the run method for multiple direct scrapes (for DirectDeepwikiScraper)
+# direct_html_results = direct_html_scraper.run([
+#     {"name": "page1", "url": "url1"},
+#     {"name": "page2", "url": "url2"}
+# ])
 
-# You can also use the run method for multiple direct scrapes
-# direct_results = direct_scraper.run([
+# You can also use the run method for multiple direct scrapes (for DirectMarkdownScraper)
+# direct_md_results = direct_md_scraper.run([
 #     {"name": "page1", "url": "url1"},
 #     {"name": "page2", "url": "url2"}
 # ])
@@ -137,86 +158,69 @@ python example.py
 
 ### Command-line Arguments
 
-- `library_url`: URL of the library to scrape (can be provided as a positional argument)
-- `--library`, `-l`: Library name and URL to scrape. Can be specified multiple times for different libraries.
-- `--output-dir`, `-o`: Output directory for Markdown files (default: Documents)
-- `--use-direct-scraper`: Use DirectDeepwikiScraper for scraping (default: True)
-- `--no-direct-scraper`: Disable DirectDeepwikiScraper
-- `--use-alternative-scraper`: Use alternative scraper for pages without navigation items (default: True)
-- `--no-alternative-scraper`: Disable alternative scraper for pages without navigation items
-- `--use-direct-md-scraper`: Use DirectMarkdownScraper to fetch Markdown directly (default: False)
-- `--no-direct-md-scraper`: Disable DirectMarkdownScraper
+- `library_url`: URL of the library to scrape (can be provided as a positional argument).
+- `--library`, `-l`: Library name and URL to scrape. Can be specified multiple times for different libraries. Format:
+  `--library NAME URL` (NAME and URL are placeholders).
+- `--output-dir`, `-o`: Output directory for Markdown files (default: `Documents`).
+- `--use-direct-scraper`: Use `DirectDeepwikiScraper` (HTML to Markdown conversion). Overrides `--use-direct-md-scraper`
+  if both are specified.
+- `--no-direct-scraper`: Disable `DirectDeepwikiScraper`.
+- `--use-alternative-scraper`: Use the `scrape_deepwiki` function from `direct_scraper.py` as a fallback if the primary
+  method fails (default: True).
+- `--no-alternative-scraper`: Disable the alternative scraper fallback.
+- `--use-direct-md-scraper`: Use `DirectMarkdownScraper` (fetches Markdown directly). This is the **default behavior**
+  if no scraper type is explicitly specified.
+- `--no-direct-md-scraper`: Disable `DirectMarkdownScraper`.
+
+**Scraper Priority:**
+
+1. If `--use-direct-scraper` is specified, `DirectDeepwikiScraper` (HTML to Markdown) is used.
+2. If `--use-direct-md-scraper` is specified (and `--use-direct-scraper` is not), `DirectMarkdownScraper` (Direct
+   Markdown) is used.
+3. If neither `--use-direct-scraper` nor `--use-direct-md-scraper` is specified, `DirectMarkdownScraper` (Direct
+   Markdown) is used by **default**.
+4. The `--use-alternative-scraper` flag controls a fallback mechanism within the chosen primary scraper.
 
 ### Examples
 
-1. Simplified usage:
+1. **Simplified usage (uses DirectMarkdownScraper by default):**
    ```
-   python run_scraper.py "https://deepwiki.com/python"
-   ```
-
-2. Scrape a single library with explicit parameters:
-   ```
-   python run_scraper.py --library "python" "https://deepwiki.example.com/python"
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python"
    ```
 
-3. Use the direct scraper to fetch Markdown directly:
+2. **Scrape a single library with explicit parameters (uses DirectMarkdownScraper by default):**
    ```
-   python run_direct_scraper.py "https://deepwiki.com/python"
-   ```
-
-4. Use the direct scraper with HTML preservation:
-   ```
-   python run_direct_scraper.py --library "python" "https://deepwiki.example.com/python" --save-html
+   python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.example.com/python"
    ```
 
-3. Scrape multiple libraries:
+3. **Scrape multiple libraries (uses DirectMarkdownScraper by default):**
    ```
-   python run_scraper.py --library "python" "https://deepwiki.example.com/python" --library "javascript" "https://deepwiki.example.com/javascript"
-   ```
-
-4. Specify a custom output directory:
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --output-dir "MyDocuments"
+   python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.example.com/python" --library "javascript" "https://deepwiki.example.com/javascript"
    ```
 
-5. Specify a custom output directory with explicit parameters:
+4. **Specify a custom output directory:**
    ```
-   python run_scraper.py --library "python" "https://deepwiki.example.com/python" --output-dir "MyDocuments"
-   ```
-
-6. Use DirectDeepwikiScraper for scraping:
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --output-dir "MyDocuments"
    ```
 
-7. Disable DirectDeepwikiScraper:
+5. **Explicitly use DirectMarkdownScraper (Direct Markdown):**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --no-direct-scraper
-   ```
-
-8. Disable alternative scraper for pages without navigation items:
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --no-alternative-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --use-direct-md-scraper
    ```
 
-9. Explicitly enable alternative scraper (enabled by default):
+6. **Explicitly use DirectDeepwikiScraper (HTML to Markdown):**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --use-alternative-scraper
-   ```
-
-10. Use DirectMarkdownScraper to fetch Markdown directly:
-   ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-md-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --use-direct-scraper
    ```
 
-11. Use DirectMarkdownScraper with custom output directory:
+7. **Disable the alternative scraper fallback:**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-md-scraper --output-dir "DirectMarkdownDocuments"
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --no-alternative-scraper
    ```
 
-12. Use only DirectMarkdownScraper (disable other scrapers):
+8. **Use DirectDeepwikiScraper and disable the alternative fallback:**
    ```
-   python run_scraper.py "https://deepwiki.com/python" --use-direct-md-scraper --no-direct-scraper --no-alternative-scraper
+   python -m deepwiki_to_md.run_scraper "https://deepwiki.com/python" --use-direct-scraper --no-alternative-scraper
    ```
 
 ## Output Structure
@@ -224,79 +228,137 @@ python example.py
 The converted Markdown files will be saved in the following directory structure:
 
 ```
-Documents/
-├── library_name1/
+<output_dir>/
+├── <library_name1>/
 │   └── md/
-│       ├── page1.md
-│       ├── page2.md
+│       ├── <page_name1>.md
+│       ├── <page_name2>.md
 │       └── ...
-├── library_name2/
+├── <library_name2>/
 │   └── md/
-│       ├── page1.md
-│       ├── page2.md
+│       ├── <page_name1>.md
+│       ├── <page_name2>.md
 │       └── ...
 └── ...
 ```
 
+- `<output_dir>` is the directory specified by `--output-dir` (default: `Documents`).
+- `<library_name>` is the name provided for the library.
+- Each page from the Deepwiki site is saved as a separate `.md` file within the `md` subdirectory.
+
 ## How It Works
 
-### Static Page Scraping (Default)
+The tool offers different scraping strategies:
 
-1. The script connects to the specified deepwiki site using the requests library
-2. It extracts navigation items from the ul element with class="flex-1 flex-shrink-0 space-y-1 overflow-y-auto py-1"
-3. For each navigation item, it fetches the page content
-4. It extracts the main content from the page
-5. It converts the HTML content to Markdown format
-6. It saves the Markdown content to a file in the specified directory structure
+### 1. Direct Markdown Scraping (`DirectMarkdownScraper` - Default)
 
-### Direct Scraping Features
+- **Priority:** Highest (used by default).
+- **Method:** Connects to the Deepwiki site using specialized headers optimized for fetching raw Markdown content
+  directly from the server's internal API or data structures.
+- **Process:**
+    1. Sends requests designed to retrieve Markdown data.
+    2. Parses the response (often JSON or a specific text format) to extract the Markdown content.
+    3. Cleans up the extracted Markdown (removes potential artifacts like metadata or script tags).
+    4. Saves the cleaned Markdown content directly to files.
+- **Advantage:** Highest fidelity Markdown, preserves original formatting, avoids HTML conversion errors.
 
-#### DirectDeepwikiScraper
+### 2. Direct HTML Scraping (`DirectDeepwikiScraper`)
 
-The direct scraping feature allows you to fetch content directly from DeepWiki:
+- **Priority:** Medium (used if `--use-direct-scraper` is specified).
+- **Method:** Connects to the Deepwiki site using headers that mimic a browser request to fetch the rendered HTML page.
+- **Process:**
+    1. Fetches the full HTML of the page.
+    2. Uses BeautifulSoup to parse the HTML.
+    3. Identifies the main content area using various CSS selectors.
+    4. Uses `markdownify` library to convert the selected HTML content block to Markdown.
+    5. Saves the converted Markdown.
+- **Advantage:** More robust than basic static scraping if direct Markdown fetching fails or is unavailable.
+- **Disadvantage:** Relies on HTML structure and conversion quality.
 
-1. Connects to the DeepWiki site using specialized headers
-2. Extracts HTML content from the response
-3. Preserves HTML structure needed for left-side URLs (optional)
-4. Converts HTML to Markdown
-5. Extracts navigation items from the page and performs hierarchical scraping
-6. Saves the content as Markdown files in the specified directory structure
+### 3. Alternative Scraper Fallback (`scrape_deepwiki` from `direct_scraper.py`)
 
-This method provides more reliable content extraction than the standard scraping method.
+- **Priority:** Lowest (used as a fallback within the primary scraper if `--use-alternative-scraper` is enabled, which
+  is the default).
+- **Method:** A simpler static request mechanism, potentially used if the main methods encounter issues (e.g., complex
+  navigation or unexpected page structure).
+- **Process:** Fetches HTML and attempts basic content extraction.
 
-#### DirectMarkdownScraper (New Feature)
+### Navigation and Hierarchy
 
-The new direct Markdown scraping feature allows you to fetch Markdown content directly from DeepWiki without HTML
-conversion:
-
-1. Connects to the DeepWiki site using specialized headers optimized for Markdown content
-2. Directly retrieves Markdown content from the server
-3. Extracts navigation items from the page and performs hierarchical scraping
-4. Saves the content as Markdown files in the specified directory structure
-
-This method completely skips the HTML-to-Markdown conversion process, resulting in the highest quality Markdown content
-with proper formatting and structure.
+- Both `DirectMarkdownScraper` and `DirectDeepwikiScraper` attempt to identify navigation links (like a table of
+  contents or sidebar) within the fetched content (either Markdown or HTML).
+- They recursively follow these links to scrape the entire library structure.
 
 ### Error Handling
 
-The tool includes robust error handling to deal with common issues:
+The tool includes robust error handling:
 
-1. Validates domains before attempting to scrape (rejects placeholder domains like example.com)
-2. Checks if domains are reachable before attempting to connect
-3. Provides clear error messages when domains are unreachable
-4. Gracefully falls back to alternative scraping methods when primary methods fail
-5. Implements retry mechanisms with exponential backoff for transient errors
-
+- Validates domains before scraping.
+- Checks domain reachability.
+- Provides clear error messages.
+- Implements retry mechanisms with exponential backoff for transient network errors.
+- Falls back to the alternative scraper if configured and the primary method fails.
 
 ## Customization
 
-You can modify the `deepwiki_to_md.py` script to customize:
+You can modify the Python scripts (`deepwiki_to_md/deepwiki_to_md.py`, `deepwiki_to_md/direct_scraper.py`,
+`deepwiki_to_md/direct_md_scraper.py`) to customize:
 
-- The HTML selectors used to extract content
-- The HTML to Markdown conversion logic
-- The output file naming convention
-- The delay between requests
+- HTML selectors used for content extraction (in `DirectDeepwikiScraper`).
+- Markdown parsing/cleaning logic (in `DirectMarkdownScraper`).
+- HTML to Markdown conversion options (`markdownify` settings).
+- Output file naming conventions.
+- Request headers and delays.
 
+## Markdown to YAML Conversion
+
+The tool also provides functionality to convert Markdown files to YAML format while preserving the formatting. This is
+particularly useful for LLMs (Large Language Models) as YAML is an optimal format for them to read.
+
+### Using the Conversion Tool
+
+You can convert Markdown files to YAML using the command-line interface:
+
+```
+python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md"
+```
+
+To specify a custom output directory:
+
+```
+python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md" --output "path/to/output/directory"
+```
+
+### Using the Python API
+
+You can also use the conversion function directly in your Python code:
+
+```python
+from deepwiki_to_md.md_to_yaml import convert_md_file_to_yaml
+
+# Convert a Markdown file to YAML
+yaml_file_path = convert_md_file_to_yaml("path/to/markdown/file.md")
+
+# Convert a Markdown file to YAML with a custom output directory
+yaml_file_path = convert_md_file_to_yaml("path/to/markdown/file.md", "path/to/output/directory")
+```
+
+### YAML Format
+
+The converted YAML file includes:
+
+- `timestamp`: The time of conversion
+- `title`: Extracted from the first header in the Markdown file
+- `content`: The full Markdown content with formatting preserved
+- `links`: A list of links extracted from the Markdown
+- `metadata`: Additional information including:
+    - `headers`: A list of all headers in the Markdown
+    - `paragraphs_count`: The number of paragraphs
+    - `lists_count`: The number of lists
+    - `tables_count`: The number of tables
+
+This structured format makes it easier for LLMs to process and understand the content while preserving the original
+Markdown formatting.
 
 ## License
 

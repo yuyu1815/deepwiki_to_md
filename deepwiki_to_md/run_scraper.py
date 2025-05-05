@@ -8,6 +8,7 @@ from .deepwiki_to_md import DeepwikiScraper
 
 def parse_arguments():
     """Parse command line arguments."""
+    # """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(description='Scrape deepwiki and convert to Markdown.')
 
     parser.add_argument('--library', '-l', action='append', nargs=2, metavar=('NAME', 'URL'),
@@ -35,6 +36,7 @@ def parse_arguments():
                         help='Disable DirectMarkdownScraper')
 
     # Selenium-related arguments removed - only static requests are supported
+    # Selenium関連の引数は削除されました - 静的リクエストのみがサポートされています
 
     parser.add_argument('library_url', nargs='?',
                         help='URL of the library to scrape (alternative to --library)')
@@ -42,14 +44,17 @@ def parse_arguments():
     args = parser.parse_args()
 
     # Handle the case where a library URL is provided as a positional argument
+    # ライブラリURLが位置引数として提供された場合の処理
     if args.library_url and not args.library:
         # Extract library name from URL path
+        # URLパスからライブラリ名を抽出
         from urllib.parse import urlparse
         path = urlparse(args.library_url).path.strip('/')
         library_name = path.split('/')[-1] if path else 'library'
         args.library = [(library_name, args.library_url)]
 
     # Validate arguments
+    # 引数の検証
     if not args.library and not args.library_url:
         parser.error("Either a library URL or at least one library must be specified using --library")
 
@@ -58,24 +63,30 @@ def parse_arguments():
 
 def main():
     """Main function to run the scraper."""
+    # """スクレイパーを実行するメイン関数。"""
     args = parse_arguments()
 
     # Format libraries as expected by DeepwikiScraper
+    # DeepwikiScraperが期待する形式にライブラリをフォーマット
     libraries = [
         {"name": name, "url": url}
         for name, url in args.library
     ]
 
     # Determine whether to use DirectDeepwikiScraper
+    # DirectDeepwikiScraperを使用するかどうかを決定
     use_direct_scraper = not args.no_direct_scraper
 
     # Determine whether to use alternative scraper
+    # 代替スクレイパーを使用するかどうかを決定
     use_alternative_scraper = not args.no_alternative_scraper
 
     # Determine whether to use DirectMarkdownScraper
+    # DirectMarkdownScraperを使用するかどうかを決定
     use_direct_md_scraper = args.use_direct_md_scraper and not args.no_direct_md_scraper
 
     # Create and run the scraper
+    # スクレイパーを作成して実行
     scraper = DeepwikiScraper(
         output_dir=args.output_dir,
         use_direct_scraper=use_direct_scraper,
