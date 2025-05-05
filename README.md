@@ -8,9 +8,9 @@ strategies and utility functions for processing the scraped data.
 ## Features
 
 - Scrapes content from deepwiki sites using multiple strategies:
-    - Direct Markdown Fetching (default)
-    - Direct HTML Scraping with conversion
-    - Simple static fallback
+  - Direct Markdown Fetching (default)
+  - Direct HTML Scraping with conversion
+  - Simple static fallback
 - Extracts navigation items from specified UI elements to traverse libraries
 - Converts HTML content to Markdown format using `markdownify`
 - Saves the converted files in an organized directory structure
@@ -24,13 +24,13 @@ strategies and utility functions for processing the scraped data.
 
 - Python 3.6 or higher
 - Required Python packages (see `requirements.txt`):
-    - `requests`
-    - `beautifulsoup4`
-    - `argparse`
-    - `markdownify`
-    - `selenium` (Required for the chat scraping feature)
-    - `webdriver-manager` (Required for the chat scraping feature)
-    - `pyyaml` (Required for the Markdown to YAML conversion feature)
+  - `requests`
+  - `beautifulsoup4`
+  - `argparse`
+  - `markdownify`
+  - `selenium` (Required for the chat scraping feature)
+  - `webdriver-manager` (Required for the chat scraping feature)
+  - `pyyaml` (Required for the Markdown to YAML conversion feature)
 
 ## Installation
 
@@ -200,14 +200,14 @@ finally:
   creator.close()
 ```
 
-### Command-line Arguments
+## Command-line Arguments
 
 For `deepwiki-to-md` or `python -m deepwiki_to_md.run_scraper`:
 
 - `library_url`: URL of the library to scrape (can be provided as a positional argument).
 - `--library`, `-l`: Library name and URL to scrape. Can be specified multiple times for different libraries. Format:
   `--library NAME URL`.
-- `--output-dir`, `-o`: Output directory for Markdown files (default: `Documents`).
+- `--output-dir`, `-o`: Output directory for Markdown files (default: Documents).
 - `--use-direct-scraper`: Use DirectDeepwikiScraper (HTML to Markdown conversion). Prioritized over
   `--use-direct-md-scraper` if both are specified.
 - `--no-direct-scraper`: Disable DirectDeepwikiScraper.
@@ -218,21 +218,20 @@ For `deepwiki-to-md` or `python -m deepwiki_to_md.run_scraper`:
   scraper type is explicitly specified.
 - `--no-direct-md-scraper`: Disable DirectMarkdownScraper.
 
-#### Scraper Priority:
+Scraper Priority:
 
-1. If `--use-direct-scraper` is specified, DirectDeepwikiScraper (HTML to Markdown) is used.
-2. If `--use-direct-md-scraper` is specified (and `--use-direct-scraper` is not), DirectMarkdownScraper (Direct
-   Markdown) is used.
-3. If neither is specified, DirectMarkdownScraper (Direct Markdown) is used by default.
-4. The `--use-alternative-scraper` flag controls a fallback mechanism within the chosen primary scraper.
+- If `--use-direct-scraper` is specified, DirectDeepwikiScraper (HTML to Markdown) is used.
+- If `--use-direct-md-scraper` is specified (and `--use-direct-scraper` is not), DirectMarkdownScraper (Direct Markdown)
+  is used.
+- If neither is specified, DirectMarkdownScraper (Direct Markdown) is used by default.
+- The `--use-alternative-scraper` flag controls a fallback mechanism within the chosen primary scraper.
 
 For `deepwiki-create` or `python -m deepwiki_to_md.create`:
-
 - `--url` (required): The URL of the repository creation page.
 - `--email` (required): The email address to notify.
 - `--headless`: Run the browser in headless mode (without UI).
 
-### Examples (Command Line)
+## Examples (Command Line)
 
 Simplified usage (uses DirectMarkdownScraper by default):
 
@@ -250,7 +249,7 @@ python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.com/py
 Scrape multiple libraries:
 
 ```bash
-python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.com/python/cpython" --library "javascript" "https://deepwiki.example.com/javascript"
+python -m deepwiki_to_md.run_scraper --library "python" "https://deepwiki.com/python/cpython" --library "microsoft/vscode" "https://deepwiki.com/microsoft/vscode"
 ```
 
 Specify a custom output directory:
@@ -303,7 +302,6 @@ python -m deepwiki_to_md.run_direct_scraper "https://deepwiki.com/python/cpython
 ```
 
 Arguments for run_direct_scraper.py:
-
 - `library_url`: URL of the library (positional).
 - `--library`, `-l`: Library name and URL (can be multiple).
 - `--output-dir`, `-o`: Output directory (default: DynamicDocuments).
@@ -332,8 +330,8 @@ The converted Markdown files will be saved in the following directory structure:
 └── ...
 ```
 
-- `<output_dir>` is the directory specified by `--output-dir` (default: `Documents` for run_scraper.py,
-  `DynamicDocuments` for run_direct_scraper.py).
+- `<output_dir>` is the directory specified by `--output-dir` (default: Documents for run_scraper.py, DynamicDocuments
+  for run_direct_scraper.py).
 - `<library_name>` is the name provided for the library (or inferred from the URL path).
 - Each page from the Deepwiki site is saved as a separate .md file within the md subdirectory.
 - Original HTML is saved in the html subdirectory if the `--save-html` option is used with DirectDeepwikiScraper.
@@ -344,44 +342,35 @@ The tool offers different scraping strategies to maximize compatibility and outp
 
 ### 1. Direct Markdown Scraping (DirectMarkdownScraper - Default)
 
-**Priority:** Highest (used by default if no other scraper is explicitly chosen).
-
-**Method:** Attempts to fetch the raw Markdown content directly from the Deepwiki site's underlying data source or API.
-This is done by sending requests with specialized headers that mimic internal application requests.
-
-**Process:**
-
-- Sends requests designed to retrieve Markdown data (using specific Accept headers or query parameters)
-- Parses the response to extract the Markdown content
-- Performs minimal cleaning on the extracted Markdown
-- Splits the content into multiple files based on level 2 headings (##)
-- Saves the cleaned and split Markdown content directly to .md files
-
-**Advantage:** Produces the highest fidelity Markdown, preserving the original formatting and structure as intended by
-the author.
+- **Priority**: Highest (used by default if no other scraper is explicitly chosen).
+- **Method**: Attempts to fetch the raw Markdown content directly from the Deepwiki site's underlying data source or
+  API. This is done by sending requests with specialized headers that mimic internal application requests.
+- **Process**:
+  - Sends requests designed to retrieve Markdown data (using specific Accept headers or query parameters)
+  - Parses the response to extract the Markdown content
+  - Performs minimal cleaning on the extracted Markdown
+  - Splits the content into multiple files based on level 2 headings (##)
+  - Saves the cleaned and split Markdown content directly to .md files
+- **Advantage**: Produces the highest fidelity Markdown, preserving the original formatting and structure as intended by
+  the author.
 
 ### 2. Direct HTML Scraping (DirectDeepwikiScraper)
 
-**Priority:** Medium (used if `--use-direct-scraper` is specified).
-
-**Method:** Connects to the Deepwiki site using headers that mimic a standard browser request to fetch the fully
-rendered HTML page.
-
-**Process:**
-
-- Fetches the full HTML of the page using the `scrape_deepwiki` function
-- Uses BeautifulSoup to parse the HTML
-- Identifies the main content area using a list of potential CSS selectors
-- Uses the markdownify library to convert the selected HTML content to Markdown
-- Saves the converted Markdown
-
-**Advantage:** More robust than basic static scraping if direct Markdown fetching fails or is unavailable.
+- **Priority**: Medium (used if `--use-direct-scraper` is specified).
+- **Method**: Connects to the Deepwiki site using headers that mimic a standard browser request to fetch the fully
+  rendered HTML page.
+- **Process**:
+  - Fetches the full HTML of the page using the scrape_deepwiki function
+  - Uses BeautifulSoup to parse the HTML
+  - Identifies the main content area using a list of potential CSS selectors
+  - Uses the markdownify library to convert the selected HTML content to Markdown
+  - Saves the converted Markdown
+- **Advantage**: More robust than basic static scraping if direct Markdown fetching fails or is unavailable.
 
 ### 3. Alternative Scraper Fallback
 
-**Priority:** Lowest (used as a fallback if `--use-alternative-scraper` is enabled).
-
-**Method:** A simpler static requests mechanism with specific headers designed to fetch the page HTML reliably.
+- **Priority**: Lowest (used as a fallback if `--use-alternative-scraper` is enabled).
+- **Method**: A simpler static requests mechanism with specific headers designed to fetch the page HTML reliably.
 
 ## Markdown to YAML Conversion Utility
 
@@ -389,11 +378,10 @@ The tool provides a utility to convert Markdown files to YAML format while prese
 useful for processing the scraped content for LLMs.
 
 ### Using the Conversion Tool (Command Line)
-
 ```bash
 python -m deepwiki_to_md.chat convert --md "path/to/markdown/file.md"
-# Or if entry point is configured:
-python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md"
+# Or if console script entry point is installed:
+# deepwiki-chat convert --md "path/to/markdown/file.md"
 ```
 
 To specify a custom output directory:
@@ -403,7 +391,6 @@ python -m deepwiki_to_md.chat convert --md "path/to/markdown/file.md" --output "
 ```
 
 ### Using the Python API (Markdown to YAML)
-
 ```python
 from deepwiki_to_md.md_to_yaml import convert_md_file_to_yaml, markdown_to_yaml
 
@@ -462,16 +449,14 @@ metadata:
 ## Markdown Link Fixing Utility
 
 The tool automatically runs a link-fixing utility on the generated .md files. This utility finds Markdown links in the
-format `[Text](URL)` and replaces them with `[Text]()`.
+format [Text](URL) and replaces them with [Text]().
 
 ### Using the Link Fixing Tool (Command Line)
-
 ```bash
 python -m deepwiki_to_md.fix_markdown_links "path/to/your/markdown/directory"
 ```
 
 ### Using the Python API (Link Fixing)
-
 ```python
 from deepwiki_to_md.fix_markdown_links import fix_markdown_links
 
@@ -484,13 +469,11 @@ fix_markdown_links("path/to/your/markdown/directory")
 The tool includes a feature to interact with chat interfaces using Selenium and save the responses.
 
 ### Using the Chat Scraper (Command Line)
-
 ```bash
 python -m deepwiki_to_md.chat --url "https://deepwiki.com/some_chat_page" --message "Your message here" --wait 10 --debug --format "html,md,yaml" --output "MyChatResponses" --deep
 ```
 
 Arguments for chat.py:
-
 - `--url`: URL of the chat interface.
 - `--message`: Message to send.
 - `--selector`: CSS selector for the chat input (default: textarea).
