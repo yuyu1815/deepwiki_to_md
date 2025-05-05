@@ -1,10 +1,19 @@
 import json
 import locale
+import logging
 import os
 from typing import Dict, Any
 
 # Default language is English
 DEFAULT_LANGUAGE = 'en_us'
+
+# This module provides localization support for the application.
+# The get_message function includes robust fallback mechanisms to prevent
+# application crashes when localization fails. It will:
+# 1. Try to get the message in the current language
+# 2. Fall back to the default language if the message is not found
+# 3. Return a descriptive error message if all fallbacks fail
+# 4. Log warnings/errors to help with debugging
 
 # Dictionary of supported languages
 SUPPORTED_LANGUAGES = {
@@ -84,29 +93,55 @@ def get_system_language() -> str:
 def get_message(key: str, **kwargs: Any) -> str:
     """
     Get a localized message by key, with optional format arguments.
+    Includes robust fallback mechanisms to prevent application crashes.
 
     Args:
         key (str): The message key
         **kwargs: Format arguments for the message
 
     Returns:
-        str: The localized message
+        str: The localized message, or a fallback message if retrieval fails
     """
-    # Get the current language
-    lang = get_system_language()
+    try:
+        # Get the current language
+        lang = get_system_language()
 
-    # Get the messages for the current language
-    messages = MESSAGES.get(lang, MESSAGES[DEFAULT_LANGUAGE])
-
-    # Get the message by key, or fall back to the key itself if not found
-    message = messages.get(key, key)
-
-    # Format the message with the provided arguments
-    if kwargs:
+        # Get the messages for the current language
         try:
-            return message.format(**kwargs)
-        except KeyError:
-            # If formatting fails, return the unformatted message
-            return message
+            messages = MESSAGES.get(lang, {})
+            if not messages and DEFAULT_LANGUAGE in MESSAGES:
+                messages = MESSAGES[DEFAULT_LANGUAGE]
+            elif not messages:
+                # If both language and default language messages are empty
+                return f"[Missing message: {key}]"
+        except Exception as e:
+            logging.warning(f"Error accessing messages dictionary: {e}")
+            return f"[Message lookup error: {key}]"
 
-    return message
+        # Get the message by key, or fall back to the key itself if not found
+        message = messages.get(key)
+        if message is None:
+            # Try to get the message from the default language
+            if lang != DEFAULT_LANGUAGE and DEFAULT_LANGUAGE in MESSAGES:
+                message = MESSAGES[DEFAULT_LANGUAGE].get(key)
+
+            # If still not found, use the key itself
+            if message is None:
+                return f"[Unknown message key: {key}]"
+
+        # Format the message with the provided arguments
+        if kwargs:
+            try:
+                return message.format(**kwargs)
+            except KeyError as e:
+                logging.warning(f"Missing format key in message '{key}': {e}")
+                return f"{message} [Format error: missing {e}]"
+            except Exception as e:
+                logging.warning(f"Error formatting message '{key}': {e}")
+                return message
+
+        return message
+    except Exception as e:
+        # Catch-all for any unexpected errors
+        logging.error(f"Unexpected error in get_message for key '{key}': {e}")
+        return f"[Message error: {key}]"

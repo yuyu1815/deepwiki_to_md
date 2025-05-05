@@ -5,13 +5,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepwiki-to-md",
-    version="0.1.0",
-    author="Original Author",
+    version="0.2.0",
+    author="yuzumican",
     author_email="author@example.com",
     description="A Python tool to scrape content from deepwiki sites and convert it to Markdown format",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/deepwiki_to_md",
+    url="https://github.com/yuyu1815/deepwiki_to_md",
     packages=find_packages(),
     license="MIT",
     license_expression="MIT",
