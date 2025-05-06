@@ -89,16 +89,30 @@ except ImportError:
 
 
 class DeepwikiScraper:
-    def __init__(self, output_dir="Documents", use_direct_scraper=False, use_alternative_scraper=False):
+    def __init__(self, output_dir="Documents", use_direct_scraper=False, use_alternative_scraper=False,
+                 use_direct_md_scraper=False):
         """
         Initialize the DeepwikiScraper.
+        DeepwikiScraperを初期化します。
 
         Args:
             output_dir (str): The base directory to save the converted Markdown files.
+                              変換されたMarkdownファイルを保存する基本ディレクトリ。
+
             use_direct_scraper (bool): Whether to use DirectDeepwikiScraper for scraping.
-            use_alternative_scraper (bool): Whether to use scrape_deepwiki from direct_scraper.py for scraping. When True, this method is prioritized. Default is True.
-            use_direct_md_scraper (bool): Whether to use DirectMarkdownScraper for direct Markdown scraping. When True, this method is prioritized over all others. Default is False.
+                                       スクレイピングにDirectDeepwikiScraperを使用するかどうか。
+
+            use_alternative_scraper (bool): Whether to use scrape_deepwiki from direct_scraper.py for scraping.
+                                            スクレイピングに direct_scraper.py の scrape_deepwiki を使用するかどうか。
+                                            When True, this method is prioritized. Default is False.
+                                            True の場合、この方法が優先されます。デフォルトは False。
+
+            use_direct_md_scraper (bool): Whether to use DirectMarkdownScraper for direct Markdown scraping.
+                                          Markdownの直接スクレイピングに DirectMarkdownScraper を使用するかどうか。
+                                          When True, this method is prioritized over all others. Default is True.
+                                          True の場合、この方法が最も優先されます。デフォルトは True。
         """
+
         if use_direct_scraper:
             self.use_direct_scraper = True
             self.use_alternative_scraper = False

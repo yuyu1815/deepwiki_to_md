@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepwiki-to-md",
-    version="0.3.0",
+    version="0.3.2",
     author="yuzumican",
     author_email="author@example.com",
     description="A Python tool to scrape content from deepwiki sites and convert it to Markdown format",
@@ -32,6 +32,8 @@ setup(
         "beautifulsoup4>=4.12.3",
         "selenium>=4.0.0",
         "webdriver-manager>=3.8.0",
+        "markdownify>=0.11.6",
+        "pyyaml>=6.0",
     ],
     entry_points={
         "console_scripts": [
@@ -40,4 +42,5 @@ setup(
             "deepwiki-chat=deepwiki_to_md.chat:main",
         ],
     },
+    include_package_data=True,
 )
