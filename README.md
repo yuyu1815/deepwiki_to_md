@@ -2,8 +2,7 @@
 
 > **The Japanese version of this document is available at [README_ja.md](./README_ja.md).**
 
-A Python tool to scrape content from deepwiki sites and convert it to Markdown format. It provides various scraping
-strategies and utility functions for processing the scraped data.
+A powerful Python tool designed to scrape content from deepwiki sites and convert it to clean Markdown format. It offers multiple scraping strategies and functions for data processing.
 
 ## Features
 
@@ -23,11 +22,15 @@ strategies and utility functions for processing the scraped data.
 ## Requirements
 
 - Python 3.6 or higher
-- Required Python packages (see `requirements.txt`):
+- Required Python packages (see [`requirements.txt`](./requirements.txt)):
+
+### Core Dependencies
   - `requests`
   - `beautifulsoup4`
   - `argparse`
   - `markdownify`
+
+### Optional Dependencies
   - `selenium` (Required for the chat scraping feature)
   - `webdriver-manager` (Required for the chat scraping feature)
   - `pyyaml` (Required for the Markdown to YAML conversion feature)
@@ -40,16 +43,14 @@ strategies and utility functions for processing the scraped data.
 pip install deepwiki-to-md
 ```
 
-This will install the core dependencies listed in setup.py. Note that selenium, webdriver-manager, and pyyaml are listed
-in requirements.txt but not in setup.py's install_requires. If you need the chat scraping or YAML conversion features,
-you may need to install these manually or install from source including requirements.txt.
+This will install the core dependencies listed in [setup.py](./setup.py). Note that `selenium`, `webdriver-manager`, and `pyyaml` are listed in [`requirements.txt`](./requirements.txt) but not as install dependencies in `setup.py`. Install them manually or install from source including `requirements.txt` if you need the chat scraping or YAML conversion features.
 
 ### Option 2: Install from source
 
 Clone this repository:
 
 ```bash
-git clone https://github.com/yourusername/deepwiki_to_md.git
+git clone https://github.com/yuyu1815/deepwiki_to_md.git
 cd deepwiki_to_md
 ```
 
@@ -311,7 +312,7 @@ Arguments for run_direct_scraper.py:
 
 The converted Markdown files will be saved in the following directory structure:
 
-```
+```text
 <output_dir>/
 ├── <library_name1>/
 │   └── md/
@@ -489,4 +490,4 @@ Note: The chat scraper uses Selenium, which requires a compatible browser instal
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
