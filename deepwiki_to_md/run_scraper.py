@@ -21,14 +21,7 @@ def parse_arguments():
     parser.add_argument('--use-direct-scraper', action='store_true',
                         help=get_message('use_direct_scraper_help'))
 
-    parser.add_argument('--no-direct-scraper', action='store_true',
-                        help=get_message('no_direct_scraper_help'))
-
-    parser.add_argument('--use-alternative-scraper', action='store_true',
-                        help=get_message('use_alternative_scraper_help'))
-
-    parser.add_argument('--no-alternative-scraper', action='store_true',
-                        help=get_message('no_alternative_scraper_help'))
+    # 代替スクレイパーの引数は削除されました
 
     parser.add_argument('--use-direct-md-scraper', action='store_true',
                         help=get_message('use_direct_md_scraper_help'))
@@ -76,27 +69,29 @@ def main():
 
     # Determine whether to use DirectDeepwikiScraper
     # DirectDeepwikiScraperを使用するかどうかを決定
-    use_direct_scraper = not args.no_direct_scraper
+    use_direct_scraper = args.use_direct_scraper
 
-    # Determine whether to use alternative scraper
-    # 代替スクレイパーを使用するかどうかを決定
-    use_alternative_scraper = not args.no_alternative_scraper
-
-    # Determine whether to use DirectMarkdownScraper
-    # DirectMarkdownScraperを使用するかどうかを決定
-    use_direct_md_scraper = args.use_direct_md_scraper and not args.no_direct_md_scraper
+    # 代替スクレイパーの機能は削除されました
 
     # Create and run the scraper
     # スクレイパーを作成して実行
     scraper = DeepwikiScraper(
         output_dir=args.output_dir,
         use_direct_scraper=use_direct_scraper,
-        use_alternative_scraper=use_alternative_scraper,
-        use_direct_md_scraper=use_direct_md_scraper
     )
 
     try:
-        scraper.run(libraries)
+        # Process each library
+        for library in libraries:
+            name = library['name']
+            url = library['url']
+            print(get_message('scraping_library', library_name=name))
+            saved_files = scraper.scrape_library(url, name)
+            if saved_files:
+                print(get_message('library_scraping_completed', library_name=name, count=len(saved_files)))
+            else:
+                print(get_message('library_scraping_failed', library_name=name))
+        
         print(get_message('scraping_completed', output_dir=args.output_dir))
         return 0
     except requests.exceptions.RequestException as e:

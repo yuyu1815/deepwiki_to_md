@@ -6,8 +6,7 @@
   "output_dir_help": "Markdownファイルの出力ディレクトリ (デフォルト: {default})",
   "use_direct_scraper_help": "動的ページ読み込み後にDirectDeepwikiScraperを使用する (デフォルト: True)",
   "no_direct_scraper_help": "動的ページ読み込み後のDirectDeepwikiScraperを無効にする",
-  "use_alternative_scraper_help": "ナビゲーション項目のないページにはdirect_scraper.pyのscrape_deepwikiを使用する (デフォルト: True)",
-  "no_alternative_scraper_help": "ナビゲーション項目のないページに対するdirect_scraper.pyのscrape_deepwikiを無効にする",
+
   "use_direct_md_scraper_help": "Markdownを直接取得するためにDirectMarkdownScraperを使用する (デフォルト: False)",
   "no_direct_md_scraper_help": "DirectMarkdownScraperを無効にする",
   "library_url_help": "スクレイピングするライブラリのURL（--libraryの代わりに使用可能）",
@@ -44,8 +43,11 @@
   "scraping_library": "ライブラリをスクレイピング中: {library_name}",
   "prioritizing_direct_md_scraper": "{url}に対してDirectMarkdownScraperを優先しています",
   "direct_md_scraper_success": "DirectMarkdownScraperを使用して{url}と{count}ページを正常にスクレイピングしました",
-  "falling_back_to_alternative": "{url}に対して代替スクレイピング方法にフォールバックしています",
-  "prioritizing_scrape_deepwiki": "{url}に対してdirect_scraper.pyのscrape_deepwikiを優先しています",
+  "failed_get_html": "{url}のHTMLコンテンツの取得に失敗しました",
+  "failed_extract_content": "{url}のメインコンテンツの抽出に失敗しました",
+  "failed_convert_html": "{url}のHTMLからMarkdownへの変換に失敗しました",
+  "fixed_links": "{file_path}内のリンクを修正しました",
+
   "fixing_markdown_links": "{directory}内のマークダウンリンクを修正しています",
   "falling_back_to_standard": "{url}に対して標準スクレイピング方法にフォールバックしています",
   "processing_title": "処理中: {title}",

@@ -21,7 +21,7 @@ class RepositoryCreator:
     Class for creating repository requests
     """
 
-    def __init__(self, headless=False):
+    def __init__(self, headless=True):
         """
         Initialize the RepositoryCreator.
 

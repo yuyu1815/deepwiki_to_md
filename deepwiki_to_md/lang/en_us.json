@@ -6,8 +6,7 @@
   "output_dir_help": "Output directory for Markdown files (default: {default})",
   "use_direct_scraper_help": "Use DirectDeepwikiScraper after dynamic page loading (default: True)",
   "no_direct_scraper_help": "Disable DirectDeepwikiScraper after dynamic page loading",
-  "use_alternative_scraper_help": "Use scrape_deepwiki from direct_scraper.py for pages without navigation items (default: True)",
-  "no_alternative_scraper_help": "Disable scrape_deepwiki from direct_scraper.py for pages without navigation items",
+
   "use_direct_md_scraper_help": "Use DirectMarkdownScraper to fetch Markdown directly (default: False)",
   "no_direct_md_scraper_help": "Disable DirectMarkdownScraper",
   "library_url_help": "URL of the library to scrape (alternative to --library)",
@@ -44,8 +43,11 @@
   "scraping_library": "Scraping library: {library_name}",
   "prioritizing_direct_md_scraper": "Prioritizing DirectMarkdownScraper for {url}",
   "direct_md_scraper_success": "Successfully scraped {url} and {count} pages using DirectMarkdownScraper",
-  "falling_back_to_alternative": "Falling back to alternative scraping methods for {url}",
-  "prioritizing_scrape_deepwiki": "Prioritizing scrape_deepwiki from direct_scraper.py for {url}",
+  "failed_get_html": "Failed to get HTML content for {url}",
+  "failed_extract_content": "Failed to extract main content for {url}",
+  "failed_convert_html": "Failed to convert HTML to Markdown for {url}",
+  "fixed_links": "Fixed links in {file_path}",
+
   "fixing_markdown_links": "Fixing markdown links in {directory}",
   "falling_back_to_standard": "Falling back to standard scraping method for {url}",
   "processing_title": "Processing: {title}",

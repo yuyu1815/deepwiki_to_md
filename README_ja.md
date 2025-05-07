@@ -138,7 +138,6 @@ other_scraper.scrape_library("javascript", "https://deepwiki.example.com/javascr
 html_scraper = DeepwikiScraper(
     output_dir="HtmlScrapedDocuments",
     use_direct_scraper=True,  # DirectDeepwikiScraperを有効化
-  use_alternative_scraper=False,  # 明確にするために代替フォールバックを無効化
     use_direct_md_scraper=False  # DirectMarkdownScraperを無効化
 )
 html_scraper.scrape_library("go", "https://deepwiki.com/go")
@@ -149,7 +148,6 @@ html_scraper.scrape_library("go", "https://deepwiki.com/go")
 md_scraper = DeepwikiScraper(
     output_dir="DirectMarkdownDocuments",
     use_direct_scraper=False,
-    use_alternative_scraper=False,
     use_direct_md_scraper=True  # DirectMarkdownScraperを有効化（これがデフォルト）
 )
 md_scraper.scrape_library("rust", "https://deepwiki.com/rust")
