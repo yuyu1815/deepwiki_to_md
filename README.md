@@ -119,8 +119,8 @@ You can also use the DeepwikiScraper class directly in your Python code:
 ```python
 from deepwiki_to_md import DeepwikiScraper
 # Import specific scraper classes if needed for direct use
-from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper  # For HTML -> MD
-from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper  # For Direct MD
+from deepwiki_to_md.core.direct_scraper import DirectDeepwikiScraper  # For HTML -> MD
+from deepwiki_to_md.core.direct_md_scraper import DirectMarkdownScraper  # For Direct MD
 # Import the RepositoryCreator class for repository creation
 from deepwiki_to_md.create import RepositoryCreator
 
@@ -458,7 +458,7 @@ python -m deepwiki_to_md.fix_markdown_links "path/to/your/markdown/directory"
 
 ### Using the Python API (Link Fixing)
 ```python
-from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+from deepwiki_to_md.core.fix_markdown_links import fix_markdown_links
 
 # Fix links in all markdown files within a directory
 fix_markdown_links("path/to/your/markdown/directory")

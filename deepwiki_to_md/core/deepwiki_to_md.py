@@ -1,80 +1,21 @@
 import logging
 from typing import Optional, List
 
-# Import fix_markdown_links function
 try:
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+    from deepwiki_to_md.core.fix_markdown_links import fix_markdown_links
+    from deepwiki_to_md.core.direct_scraper import DirectDeepwikiScraper
+    from deepwiki_to_md.core.direct_md_scraper import DirectMarkdownScraper
+    from deepwiki_to_md.core.html_to_md_scraper import HTMLToMarkdownScraper
 except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .fix_markdown_links import fix_markdown_links
-    except ImportError:
-        logging.error("Could not import fix_markdown_links module")
+    from .fix_markdown_links import fix_markdown_links
+    from .direct_scraper import DirectDeepwikiScraper
+    from .direct_md_scraper import DirectMarkdownScraper
+    from .html_to_md_scraper import HTMLToMarkdownScraper
 
-
-        # Define a dummy function that does nothing if import fails
-        # インポートに失敗した場合、何もしないダミー関数を定義する
-        def fix_markdown_links(directory):
-            logging.error("fix_markdown_links module not available")
-            return
-
-# Import DirectDeepwikiScraper
 try:
-    from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper
+    from deepwiki_to_md.lang.localization import get_message
 except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .direct_scraper import DirectDeepwikiScraper
-    except ImportError:
-        logging.error("Could not import DirectDeepwikiScraper module")
-        # Define a dummy class that does nothing if import fails
-        # インポートに失敗した場合、何もしないダミークラスを定義する
-        class DirectDeepwikiScraper:
-            def __init__(self, *args, **kwargs):
-                pass
-            def scrape_page(self, *args, **kwargs):
-                raise NotImplementedError("DirectDeepwikiScraper is not available.")
-
-# 代替スクレイパー関連のインポートは削除されました
-
-# Import DirectMarkdownScraper
-try:
-    from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper
-except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .direct_md_scraper import DirectMarkdownScraper
-    except ImportError:
-        logging.error("Could not import DirectMarkdownScraper module")
-        # Define a dummy class that does nothing if import fails
-        # インポートに失敗した場合、何もしないダミークラスを定義する
-        class DirectMarkdownScraper:
-            def __init__(self, *args, **kwargs):
-                pass
-            def scrape_page(self, *args, **kwargs):
-                raise NotImplementedError("DirectMarkdownScraper is not available.")
-
-# Import HTMLToMarkdownScraper
-try:
-    from deepwiki_to_md.html_to_md_scraper import HTMLToMarkdownScraper
-except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .html_to_md_scraper import HTMLToMarkdownScraper
-    except ImportError:
-        logging.error("Could not import HTMLToMarkdownScraper module")
-
-
-        # Define a dummy class that does nothing if import fails
-        # インポートに失敗した場合、何もしないダミークラスを定義する
-        class HTMLToMarkdownScraper:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def scrape_page(self, *args, **kwargs):
-                raise NotImplementedError("HTMLToMarkdownScraper is not available.")
-
-from .localization import get_message
+    from ..lang.localization import get_message
 
 # Configure logging
 logging.basicConfig(
@@ -125,15 +66,15 @@ class DeepwikiScraper:
         # Initialize scrapers based on selected strategy
         if self.use_direct_md_scraper:
             self.direct_md_scraper = DirectMarkdownScraper(output_dir)
-            logger.info("Using DirectMarkdownScraper for scraping")
-            
+            logger.info(get_message("using_direct_md_scraper_general"))
+
         if self.use_direct_scraper:
             self.direct_scraper = DirectDeepwikiScraper(output_dir)
-            logger.info("Using DirectDeepwikiScraper for scraping")
+            logger.info(get_message("using_direct_scraper_general"))
 
         if self.use_html_to_md_scraper:
             self.html_to_md_scraper = HTMLToMarkdownScraper(output_dir)
-            logger.info("Using HTMLToMarkdownScraper for scraping")
+            logger.info(get_message("using_html_to_md_scraper_general"))
 
     def scrape_page(self, url: str, library_name: Optional[str] = None) -> Optional[str]:
         """
@@ -156,7 +97,7 @@ class DeepwikiScraper:
                 logger.info(get_message('using_direct_md_scraper', url=url))
                 return self.direct_md_scraper.scrape_page(url, library_name)
             except Exception as e:
-                logger.error(f"Error using DirectMarkdownScraper for {url}: {e}")
+                logger.error(get_message("error_direct_md_scraper", url=url, error=str(e)))
                 import traceback
                 logger.error(traceback.format_exc())
                 # Fall back to next strategy
@@ -167,7 +108,7 @@ class DeepwikiScraper:
                 logger.info(get_message('using_direct_scraper', url=url))
                 return self.direct_scraper.scrape_page(url, library_name, save_html=True, debug=False)
             except Exception as e:
-                logger.error(f"Error using DirectDeepwikiScraper for {url}: {e}")
+                logger.error(get_message("error_direct_scraper", url=url, error=str(e)))
                 import traceback
                 logger.error(traceback.format_exc())
                 # Fall back to next strategy
@@ -180,12 +121,12 @@ class DeepwikiScraper:
                 logger.info(get_message('using_html_to_md_scraper', url=url))
                 return self.html_to_md_scraper.scrape_page(url, library_name)
             except Exception as e:
-                logger.error(f"Error using HTMLToMarkdownScraper for {url}: {e}")
+                logger.error(get_message("error_html_to_md_scraper", url=url, error=str(e)))
                 import traceback
                 logger.error(traceback.format_exc())
 
         # If all strategies fail, return None
-        logger.error(f"All scraping strategies failed for {url}")
+        logger.error(get_message("all_scraping_failed", url=url))
         return None
 
     def scrape_library(self, url: str, library_name: Optional[str] = None) -> List[str]:
@@ -218,13 +159,13 @@ class DeepwikiScraper:
             if html_content:
                 # Extract navigation items
                 nav_items = self.html_to_md_scraper.extract_navigation_items(html_content, url)
-                logger.info(f"Found {len(nav_items)} navigation items")
+                logger.info(get_message("found_nav_items", count=len(nav_items)))
 
                 # Scrape each navigation item
                 for item in nav_items:
                     item_url = item['url']
                     item_title = item['title']
-                    logger.info(f"Scraping navigation item: {item_title} ({item_url})")
+                    logger.info(get_message("scraping_nav_item", title=item_title, url=item_url))
                     item_file = self.scrape_page(item_url, library_name)
                     if item_file:
                         saved_files.append(item_file)

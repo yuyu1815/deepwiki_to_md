@@ -2,7 +2,10 @@ import logging
 import os
 import re
 
-from .localization import get_message
+try:
+    from deepwiki_to_md.lang.localization import get_message
+except ImportError:
+    from ..lang.localization import get_message
 
 # Configure logging
 logging.basicConfig(
@@ -10,6 +13,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 
 def fix_markdown_links(directory):
     """
@@ -74,6 +78,7 @@ def fix_markdown_links(directory):
             f.write(modified_content)
 
         logger.info(get_message('modified_links', count=modified_links, file_path=file_path))
+
 
 if __name__ == "__main__":
     # Path to the directory containing markdown files

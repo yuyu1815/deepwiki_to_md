@@ -36,7 +36,8 @@ def load_messages() -> Dict[str, Dict[str, str]]:
 
     # Get the directory of this file
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    lang_dir = os.path.join(current_dir, 'lang')
+    # lang_dir is now the same as current_dir because localization.py is in the lang folder
+    lang_dir = current_dir
 
     # Load English messages (default)
     en_path = os.path.join(lang_dir, 'en_us.json')

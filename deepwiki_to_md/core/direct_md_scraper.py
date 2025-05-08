@@ -6,11 +6,14 @@ from urllib.parse import urlparse, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-from .localization import get_message
+try:
+    from deepwiki_to_md.lang.localization import get_message
+except ImportError:
+    from ..lang.localization import get_message
 
 # Import fix_markdown_links function
 try:
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+    from deepwiki_to_md.core.fix_markdown_links import fix_markdown_links
 except ImportError:
     # If the module import fails, try relative import
     try:
@@ -95,18 +98,18 @@ def scrape_deepwiki(url):
         "sec-fetch-site": "same-origin"
     }
 
-    logger.info(f"リクエスト実行: {full_url}")
+    logger.info(get_message("request_execution", url=full_url))
     # Execute request
 
     # リクエストの実行
     # Execute the request
     try:
         response = session.get(full_url, headers=headers, timeout=10)
-        logger.info(f"レスポンスステータス: {response.status_code}")
+        logger.info(get_message("response_status", status_code=response.status_code))
         # Response status
         return response
     except Exception as e:
-        logger.error(f"リクエスト中にエラーが発生: {e}")
+        logger.error(get_message("request_error", error=str(e)))
         # Error occurred during request
         raise
 
@@ -205,7 +208,7 @@ class DirectMarkdownScraper:
                 end_pos = match.start()
                 original_length = len(cleaned_content)
                 cleaned_content = cleaned_content[:end_pos].rstrip()
-                logger.info(f"ファイル末尾の独自データを削除しました: {original_length - len(cleaned_content)} バイト")
+                logger.info(get_message("removed_proprietary_data", bytes=original_length - len(cleaned_content)))
                 # Removed proprietary data from the end of the file: {original_length - len(cleaned_content)} bytes
 
         # 最初の28行を削除
@@ -214,7 +217,7 @@ class DirectMarkdownScraper:
             lines = cleaned_content.split('\n')
             if len(lines) > 28:
                 cleaned_content = '\n'.join(lines[28:])
-                logger.info(f"最初の28行を削除しました: {filename}.md")
+                logger.info(get_message("removed_first_lines", count=28, filename=filename))
                 # Deleted the first 28 lines: {filename}.md
 
         # コンテンツのハッシュを計算
@@ -225,8 +228,7 @@ class DirectMarkdownScraper:
         # 既に同じ内容のファイルが保存されているか確認
         # Check if a file with the same content has already been saved
         if self.saved_content_hash is not None and self.saved_content_hash == content_hash:
-            logger.info(
-                f"同じ内容のファイルが既に保存されているため保存をスキップしますが処理は続行します: {filename}.md")
+            logger.info(get_message("skip_duplicate_file", filename=f"{filename}.md"))
             # Skipping saving as a file with the same content has already been saved, but continuing processing: {filename}.md
             # 空のファイルリストを返す代わりに、ダミーのファイルパスを返して処理を続行
             # Instead of returning an empty list, return a dummy file path to continue processing
@@ -252,7 +254,7 @@ class DirectMarkdownScraper:
             first_section_path = os.path.join(output_path, first_section_filename)
             with open(first_section_path, 'w', encoding='utf-8') as f:
                 f.write(first_section)
-            logger.info(f"保存しました: {first_section_path}")
+            logger.info(get_message("saved_file_path", file_path=first_section_path))
             # Saved: {first_section_path}
             saved_files.append(first_section_path)
 
@@ -274,7 +276,7 @@ class DirectMarkdownScraper:
             section_path = os.path.join(output_path, section_filename)
             with open(section_path, 'w', encoding='utf-8') as f:
                 f.write(f"{heading}\n\n{section_content}")
-            logger.info(f"保存しました: {section_path}")
+            logger.info(get_message("saved_file_path", file_path=section_path))
             # Saved: {section_path}
             saved_files.append(section_path)
 
@@ -347,7 +349,7 @@ class DirectMarkdownScraper:
         try:
             # URLをログに出力
             # Log the URL
-            logger.info(f"scrape_page: URL = {url}")
+            logger.info(get_message("scrape_page_url", url=url))
 
             # URLの各部分を解析
             # Parse each part of the URL
@@ -361,7 +363,7 @@ class DirectMarkdownScraper:
             # Scrape the page
             response = scrape_deepwiki(correct_url)
             if response.status_code != 200:
-                logger.error(f"ページの取得に失敗しました: {url} (ステータスコード: {response.status_code})")
+                logger.error(get_message("page_fetch_failed", url=url, status_code=response.status_code))
                 # Failed to get the page
                 return []
 
@@ -376,7 +378,7 @@ class DirectMarkdownScraper:
             return self.save_markdown(response.text, library_name, page_path)
 
         except Exception as e:
-            logger.error(f"ページのスクレイピングに失敗しました: {url} ({e})")
+            logger.error(get_message("page_scrape_failed", url=url, error=str(e)))
             # Failed to scrape the page
             import traceback
             logger.error(traceback.format_exc())
@@ -400,7 +402,7 @@ class DirectMarkdownScraper:
         nav_ul = soup.select_one('ul.flex-1.flex-shrink-0.space-y-1.overflow-y-auto.py-1')
 
         if not nav_ul:
-            logger.warning("Navigation element not found")
+            logger.warning(get_message("navigation_element_not_found"))
             return []
 
         nav_items = []
@@ -581,7 +583,7 @@ def main():
     # Scrape and save each URL
     all_saved_files = []
     for url in urls_to_scrape:
-        logger.info(f"スクレイピング開始: {url}")
+        logger.info(get_message("scraping_start", url=url))
         # Start scraping: {url}
         # URLからライブラリ名を推測（例：'cpython'）
         # Infer library name from URL (e.g., 'cpython')
@@ -591,7 +593,7 @@ def main():
         saved = scraper.scrape_and_save(url, library_name=lib_name)
         all_saved_files.extend(saved)
 
-    logger.info(f"処理完了。合計 {len(all_saved_files)} ファイルを保存しました。")
+    logger.info(get_message("processing_complete", count=len(all_saved_files)))
     # Processing complete. Saved a total of {len(all_saved_files)} files.
 
 

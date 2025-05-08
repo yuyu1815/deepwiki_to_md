@@ -12,13 +12,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 # Import the md_to_yaml module
 try:
-    from deepwiki_to_md.md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
+    from deepwiki_to_md.core.md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
 except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
-    except ImportError:
-        logging.error("Could not import md_to_yaml module")
+    from .core.md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
 
 # ログ設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

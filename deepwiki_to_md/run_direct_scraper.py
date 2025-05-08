@@ -3,9 +3,12 @@ import sys
 
 import requests
 
-from .direct_scraper import DirectDeepwikiScraper
-from .localization import get_message
-
+try:
+    from deepwiki_to_md.core.direct_scraper import DirectDeepwikiScraper
+    from deepwiki_to_md.lang.localization import get_message
+except ImportError:
+    from .core.direct_scraper import DirectDeepwikiScraper
+    from .lang.localization import get_message
 
 def parse_arguments():
     """コマンドライン引数を解析する。"""

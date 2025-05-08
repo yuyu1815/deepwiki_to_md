@@ -12,15 +12,15 @@ from markdownify import markdownify
 
 # Import fix_markdown_links function
 try:
-    from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+    from deepwiki_to_md.core.fix_markdown_links import fix_markdown_links
 except ImportError:
     from .fix_markdown_links import fix_markdown_links
 
 # Import localization
 try:
-    from deepwiki_to_md.localization import get_message
+    from deepwiki_to_md.lang.localization import get_message
 except ImportError:
-    from .localization import get_message
+    from .lang.localization import get_message
 
 # Configure logging
 logging.basicConfig(

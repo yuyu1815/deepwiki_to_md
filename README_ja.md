@@ -115,8 +115,8 @@ DeepwikiScraperクラスをPythonコードで直接使用することもでき�
 ```python
 from deepwiki_to_md import DeepwikiScraper
 # 直接使用する場合は特定のスクレイパークラスをインポート
-from deepwiki_to_md.direct_scraper import DirectDeepwikiScraper  # HTML -> MD用
-from deepwiki_to_md.direct_md_scraper import DirectMarkdownScraper  # 直接MD用
+from deepwiki_to_md.core.direct_scraper import DirectDeepwikiScraper  # HTML -> MD用
+from deepwiki_to_md.core.direct_md_scraper import DirectMarkdownScraper  # 直接MD用
 # リポジトリ作成用のRepositoryCreatorクラスをインポート
 from deepwiki_to_md.create import RepositoryCreator
 
@@ -444,7 +444,7 @@ python -m deepwiki_to_md.fix_markdown_links "path/to/your/markdown/directory"
 
 ### Python APIの使用（リンク修正）
 ```python
-from deepwiki_to_md.fix_markdown_links import fix_markdown_links
+from deepwiki_to_md.core.fix_markdown_links import fix_markdown_links
 
 # ディレクトリ内のすべてのmarkdownファイルのリンクを修正
 fix_markdown_links("path/to/your/markdown/directory")

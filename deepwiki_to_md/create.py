@@ -8,8 +8,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from deepwiki_to_md.localization import get_message
-
+try:
+    from deepwiki_to_md.lang.localization import get_message
+except ImportError:
+    from .lang.localization import get_message
 # ログ設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

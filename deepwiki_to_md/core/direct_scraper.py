@@ -7,7 +7,10 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
-from .localization import get_message
+try:
+    from deepwiki_to_md.lang.localization import get_message
+except ImportError:
+    from ..lang.localization import get_message
 
 # Configure logging
 logging.basicConfig(
@@ -40,7 +43,7 @@ def scrape_deepwiki(url, debug=False):
 
     # 正しいURLをログに出力
     # Log the correct URL
-    logger.info(f"スクレイピング開始: {url} (パス: {path})")
+    logger.info(get_message("scraping_start_with_path", url=url, path=path))
 
     # セッションの作成
     # Create a session
@@ -82,13 +85,13 @@ def scrape_deepwiki(url, debug=False):
         "Upgrade-Insecure-Requests": "1"
     }
 
-    logger.info(f"リクエスト実行: {full_url}")
+    logger.info(get_message("request_execution", url=full_url))
 
     # リクエストの実行
     # Execute the request
     try:
         response = session.get(full_url, headers=headers, timeout=10)
-        logger.info(f"レスポンスステータス: {response.status_code}")
+        logger.info(get_message("response_status", status_code=response.status_code))
 
         # デバッグモードの場合、レスポンスの内容を保存
         # If debug mode is enabled, save the response content
@@ -101,7 +104,7 @@ def scrape_deepwiki(url, debug=False):
             debug_file = os.path.join(debug_dir, f"{filename}.html")
             with open(debug_file, 'w', encoding='utf-8') as f:
                 f.write(response.text)
-            logger.info(f"デバッグ用にHTMLを保存: {debug_file}")
+            logger.info(get_message("debug_html_saved", file=debug_file))
 
             # レスポンスヘッダーも保存
             # Also save the response headers
@@ -109,11 +112,11 @@ def scrape_deepwiki(url, debug=False):
             with open(headers_file, 'w', encoding='utf-8') as f:
                 for key, value in response.headers.items():
                     f.write(f"{key}: {value}\n")
-            logger.info(f"デバッグ用にヘッダーを保存: {headers_file}")
+            logger.info(get_message("debug_headers_saved", file=headers_file))
 
         return response
     except Exception as e:
-        logger.error(f"リクエスト中にエラーが発生: {e}")
+        logger.error(get_message("request_error", error=str(e)))
         # Error occurred during request
         raise
 
@@ -142,8 +145,8 @@ class DirectDeepwikiScraper:
 
         # HTMLの基本情報をログに出力
         # Log basic HTML information
-        logger.info(f"HTML長さ: {len(html_content)} バイト")
-        logger.info(f"HTMLタイトル: {soup.title.string if soup.title else 'タイトルなし'}")
+        logger.info(get_message("html_length", bytes=len(html_content)))
+        logger.info(get_message("html_title", title=soup.title.string if soup.title else 'タイトルなし'))
 
         # メインコンテンツの可能性のあるセレクターを複数試す
         # より具体的なものから一般的なものへ
@@ -204,7 +207,7 @@ class DirectDeepwikiScraper:
         for selector in selectors:
             main_content = soup.select_one(selector)
             if main_content and len(main_content.get_text(strip=True)) > 0:
-                logger.info(f"セレクターを使用してコンテンツを発見: {selector}")
+                logger.info(get_message("content_found_with_selector_direct", selector=selector))
                 break
 
         # セレクターでコンテンツが見つからない場合、最大のテキストコンテンツを持つ要素を探す
@@ -229,7 +232,8 @@ class DirectDeepwikiScraper:
                         logger.debug(f"div[{i}] テキスト長: {text_len}")
 
                     main_content = max(divs, key=lambda x: len(x.get_text(strip=True)))
-                    logger.info(f"最大テキストコンテンツを持つdivを使用 (テキスト長: {len(main_content.get_text(strip=True))})")
+                    logger.info(
+                        f"最大テキストコンテンツを持つdivを使用 (テキスト長: {len(main_content.get_text(strip=True))})")
                 else:
                     main_content = body
                     logger.info(f"body要素を使用 (テキスト長: {len(body.get_text(strip=True))})")
@@ -319,7 +323,8 @@ class DirectDeepwikiScraper:
             # Parse each part of the URL
             parsed_url = urlparse(url)
             logger.info(f"scrape_page: parsed_url = {parsed_url}")
-            logger.info(f"scrape_page: scheme = {parsed_url.scheme}, netloc = {parsed_url.netloc}, path = {parsed_url.path}")
+            logger.info(
+                f"scrape_page: scheme = {parsed_url.scheme}, netloc = {parsed_url.netloc}, path = {parsed_url.path}")
 
             # 正しいURLを構築
             # Construct the correct URL

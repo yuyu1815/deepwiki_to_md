@@ -3,9 +3,12 @@ import sys
 
 import requests
 
-from .deepwiki_to_md import DeepwikiScraper
-from .localization import get_message
-
+try:
+    from deepwiki_to_md.core.deepwiki_to_md import DeepwikiScraper
+    from deepwiki_to_md.lang.localization import get_message
+except ImportError:
+    from .core.deepwiki_to_md import DeepwikiScraper
+    from .lang.localization import get_message
 
 def parse_arguments():
     """Parse command line arguments."""
