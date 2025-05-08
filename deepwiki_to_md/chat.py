@@ -13,8 +13,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 # Import the md_to_yaml module
 try:
     from deepwiki_to_md.core.md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
+    from deepwiki_to_md.lang.localization import get_message
 except ImportError:
     from .core.md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
+    from .lang.localization import get_message
 
 # ログ設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -373,34 +375,42 @@ def parse_arguments():
     コマンドライン引数を解析する
     Parse command line arguments
     """
-    parser = argparse.ArgumentParser(description="DeepWiki Chat Scraper")
+    parser = argparse.ArgumentParser(
+        description=get_message("chat_scraper_description", default="DeepWiki Chat Scraper"))
 
     # Add a subparser for the convert mode
-    subparsers = parser.add_subparsers(dest="mode", help="操作モード (Operation mode)")
+    subparsers = parser.add_subparsers(dest="mode", help=get_message("operation_mode_help", default="Operation mode"))
 
     # Convert mode parser
-    convert_parser = subparsers.add_parser("convert", help="変換モード (Convert mode)")
+    convert_parser = subparsers.add_parser("convert", help=get_message("convert_mode_help", default="Convert mode"))
     convert_parser.add_argument("--md", required=True,
-                                help="変換するMarkdownファイルのパス (Path to Markdown file to convert)")
+                                help=get_message("md_file_path_help", default="Path to Markdown file to convert"))
     convert_parser.add_argument("--output",
-                                help="出力ディレクトリ (Output directory) [デフォルト: 入力ファイルと同じディレクトリ]")
+                                help=get_message("output_dir_help", default="Output directory"))
 
     # Add chat mode arguments to the main parser for backward compatibility
-    parser.add_argument("--url", help="チャットインターフェースのURL (URL of the chat interface)")
-    parser.add_argument("--message", help="送信するメッセージ (Message to send)")
+    parser.add_argument("--url", help=get_message("chat_url_help", default="URL of the chat interface"))
+    parser.add_argument("--message", help=get_message("chat_message_help", default="Message to send"))
     parser.add_argument("--selector", default="textarea",
-                        help="チャット入力要素のCSSセレクタ (CSS selector for the chat input element) [デフォルト: textarea]")
+                        help=get_message("chat_selector_help",
+                                         default="CSS selector for the chat input element [default: textarea]"))
     parser.add_argument("--button", default="button",
-                        help="送信ボタンのCSSセレクタ (CSS selector for the submit button) [デフォルト: button[type='submit']]")
+                        help=get_message("chat_button_help",
+                                         default="CSS selector for the submit button [default: button]"))
     parser.add_argument("--wait", type=int, default=30,
-                        help="レスポンスを待つ時間（秒） (Time to wait for response in seconds) [デフォルト: 30]")
-    parser.add_argument("--debug", action="store_true", help="デバッグモードを有効にする (Enable debug mode)")
+                        help=get_message("chat_wait_help",
+                                         default="Time to wait for response in seconds [default: 30]"))
+    parser.add_argument("--debug", action="store_true",
+                        help=get_message("debug_mode_help", default="Enable debug mode"))
     parser.add_argument("--output", default="ChatResponses",
-                        help="出力ディレクトリ (Output directory) [デフォルト: ChatResponses]")
-    parser.add_argument("--deep", action="store_true", help="「深い研究」モードを有効にする (Enable Deep Research mode)")
-    parser.add_argument("--headless", action="store_true", help="ヘッドレスモードを有効にする (Enable headless mode)")
+                        help=get_message("chat_output_dir_help", default="Output directory [default: ChatResponses]"))
+    parser.add_argument("--deep", action="store_true",
+                        help=get_message("deep_research_help", default="Enable Deep Research mode"))
+    parser.add_argument("--headless", action="store_true",
+                        help=get_message("headless_mode_help", default="Enable headless mode"))
     parser.add_argument("--format", default="html",
-                        help="出力フォーマット（html, md, yaml、またはカンマ区切りのリスト） (Output format (html, md, yaml, or a comma-separated list)) [デフォルト: html]")
+                        help=get_message("output_format_help",
+                                         default="Output format (html, md, yaml, or a comma-separated list) [default: html]"))
 
     args = parser.parse_args()
 
@@ -413,7 +423,8 @@ def parse_arguments():
 
     # Validate required arguments for chat mode
     if args.mode == "chat" and (args.url is None or args.message is None):
-        parser.error("Chat mode requires --url and --message arguments")
+        parser.error(
+            get_message("chat_mode_required_args_error", default="Chat mode requires --url and --message arguments"))
 
     return args
 
@@ -427,17 +438,15 @@ def main():
     # Branch processing according to mode
     if args.mode == "convert":
         # Markdown to YAML conversion mode
-        print(f"Markdownファイルを変換中: {args.md}")
-        print(f"Converting Markdown file: {args.md}")
+        print(
+            get_message("converting_markdown_file", default="Converting Markdown file: {file_path}", file_path=args.md))
 
         yaml_file = convert_md_to_yaml(args.md, args.output)
 
         if yaml_file:
-            print(f"YAMLファイルを作成しました: {yaml_file}")
-            print(f"Created YAML file: {yaml_file}")
+            print(get_message("yaml_file_created", default="Created YAML file: {file_path}", file_path=yaml_file))
         else:
-            print("変換に失敗しました")
-            print("Conversion failed")
+            print(get_message("conversion_failed", default="Conversion failed"))
     else:  # "chat" mode (default)
         # スクレイパーを初期化
         # Initialize the scraper
@@ -450,12 +459,11 @@ def main():
         try:
             # メッセージを送信
             # Send the message
-            print(f"URLにアクセス中: {args.url}")
-            print(f"メッセージ: {args.message}")
+            print(get_message("accessing_url", default="Accessing URL: {url}", url=args.url))
+            print(get_message("message_info", default="Message: {message}", message=args.message))
             if args.deep:
-                print("「深い研究」モードが有効です")
-            print(f"出力フォーマット: {args.format}")
-            print(f"Output format: {args.format}")
+                print(get_message("deep_research_enabled", default="Deep Research mode is enabled"))
+            print(get_message("output_format_info", default="Output format: {format}", format=args.format))
 
             response = scraper.send_chat_message(
                 url=args.url,
@@ -468,11 +476,9 @@ def main():
             )
 
             if response:
-                print("レスポンスを取得しました")
-                print("Response retrieved")
+                print(get_message("response_retrieved", default="Response retrieved"))
             else:
-                print("レスポンスの取得に失敗しました")
-                print("Failed to retrieve response")
+                print(get_message("response_retrieval_failed", default="Failed to retrieve response"))
 
         finally:
             # ブラウザを閉じる

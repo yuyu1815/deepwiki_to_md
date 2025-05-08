@@ -180,5 +180,6 @@ cython_debug/
 !README_ja.md
 !.junie/guidelines.md
 !upload.md
+!file_diagrams.md
 # AIによる自動生成 ファイル
 test_*.py
