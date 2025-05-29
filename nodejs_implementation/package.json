@@ -1,0 +1,40 @@
+{
+  "name": "deepwiki-to-md",
+  "version": "0.3.2",
+  "description": "A Node.js tool to scrape content from deepwiki sites and convert it to Markdown format",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest",
+    "lint": "eslint src/**/*.js"
+  },
+  "keywords": [
+    "deepwiki",
+    "markdown",
+    "scraper",
+    "converter"
+  ],
+  "author": "yuzumican",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "commander": "^10.0.1",
+    "js-yaml": "^4.1.0",
+    "markdown-it": "^13.0.1",
+    "puppeteer": "^20.1.2",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.40.0",
+    "jest": "^29.5.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "bin": {
+    "deepwiki-to-md": "./src/cli.js",
+    "deepwiki-create": "./src/create.js",
+    "deepwiki-chat": "./src/chat.js"
+  }
+}

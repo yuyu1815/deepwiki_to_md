@@ -10,6 +10,50 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
+def run_nodejs_test(test_script, report_file):
+    """Run a Node.js test script and append results to the report file."""
+    print(f"\n{'=' * 80}")
+    print(f"Running Node.js test: {test_script}")
+    print(f"{'=' * 80}")
+
+    # Run the test script using npm test
+    start_time = time.time()
+    result = subprocess.run(
+        ["npm", "test", "--", test_script],
+        cwd="nodejs_implementation",
+        capture_output=True,
+        text=True
+    )
+    end_time = time.time()
+
+    # Determine if the test passed or failed
+    passed = result.returncode == 0
+    status = "PASS" if passed else "FAIL"
+    duration = end_time - start_time
+
+    # Print the output
+    print(result.stdout)
+    if result.stderr:
+        print("STDERR:")
+        print(result.stderr)
+
+    # Append results to the report file
+    with open(report_file, 'a', encoding='utf-8') as f:
+        f.write(f"\n{'=' * 80}\n")
+        f.write(f"Node.js Test: {test_script}\n")
+        f.write(f"Status: {status}\n")
+        f.write(f"Duration: {duration:.2f} seconds\n")
+        f.write(f"{'=' * 80}\n\n")
+        f.write("STDOUT:\n")
+        f.write(result.stdout)
+        if result.stderr:
+            f.write("\nSTDERR:\n")
+            f.write(result.stderr)
+        f.write("\n")
+
+    return passed, duration
+
+
 def run_test(test_script, report_file):
     """Run a test script and append results to the report file."""
     print(f"\n{'=' * 80}")
@@ -129,8 +173,8 @@ def main():
     # Create the report header
     create_report_header(report_file)
 
-    # List of test scripts to run
-    test_scripts = [
+    # List of Python test scripts to run
+    python_test_scripts = [
         "test_md_to_yaml.py",
         "test_fix_markdown_links.py",
         "test_scraper.py",
@@ -138,11 +182,25 @@ def main():
         "test_repository_creator.py"
     ]
 
+    # List of Node.js test scripts to run
+    nodejs_test_scripts = [
+        "tests/scraper.test.js",
+        "tests/md-to-yaml.test.js",
+        "tests/repository-creator.test.js"
+    ]
+
     # Run each test and collect results
     test_results = {}
-    for test_script in test_scripts:
+
+    # Run Python tests
+    for test_script in python_test_scripts:
         passed, duration = run_test(test_script, report_file)
-        test_results[test_script] = (passed, duration)
+        test_results[f"Python: {test_script}"] = (passed, duration)
+
+    # Run Node.js tests
+    for test_script in nodejs_test_scripts:
+        passed, duration = run_nodejs_test(test_script, report_file)
+        test_results[f"Node.js: {test_script}"] = (passed, duration)
 
     # Update the summary table in the report
     update_report_summary(report_file, test_results)

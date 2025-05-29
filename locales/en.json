@@ -1,0 +1,11 @@
+{
+  "execution_time": "Execution time: {time} seconds",
+  "cli_description": "DeepWiki to Markdown Converter",
+  "url_help": "URL of the DeepWiki site to scrape",
+  "output_help": "Output directory for Markdown files",
+  "library_help": "Library name for the scraped content",
+  "verbose_help": "Enable verbose logging",
+  "verbose_mode_enabled": "Verbose mode enabled",
+  "scraping_complete": "Scraping complete. Processed {count} documents.",
+  "unexpected_error": "An unexpected error occurred: {error}"
+}
