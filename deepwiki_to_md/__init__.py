@@ -11,3 +11,6 @@ License: MIT
 
 __version__ = "0.3.2"
 __author__ = "yuzumican"
+
+# Import and expose the DeepwikiScraper class
+from deepwiki_to_md.scraper.deepwiki_scraper import DeepwikiScraper
