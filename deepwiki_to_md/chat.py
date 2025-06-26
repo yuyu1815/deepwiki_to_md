@@ -1,506 +1,231 @@
-import argparse
+"""
+DeepWikiコンテンツと対話的にチャットするためのコマンドラインツール。
+"""
+
+import json
 import logging
 import os
-import re
+import sys
 import time
+from typing import Dict, Any, List
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+import argparse
 
-# Import the md_to_yaml module
-try:
-    from deepwiki_to_md.md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
-except ImportError:
-    # If the module import fails, try relative import
-    try:
-        from .md_to_yaml import markdown_to_yaml, html_to_markdown, html_to_yaml, convert_md_file_to_yaml
-    except ImportError:
-        logging.error("Could not import md_to_yaml module")
+from deepwiki_to_md import DeepwikiScraper
+from deepwiki_to_md.models.config import Config
 
-# ログ設定
+# ロギング設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
-class ChatScraperSelenium:
-    def __init__(self, output_dir="ChatResponses", headless=False, output_format="html"):
-        """
-        Initialize the ChatScraperSelenium.
+def parse_args() -> argparse.Namespace:
+    """
+    コマンドライン引数を解析します。
+    
+    Returns:
+        argparse.Namespace: 解析された引数。
+    """
+    parser = argparse.ArgumentParser(
+        description="DeepWikiコンテンツとの対話的なチャット。"
+    )
 
-        Args:
-            output_dir (str): The directory to save the responses.
-            headless (bool): Whether to run the browser in headless mode.
-            output_format (str): The format to save the responses in. Can be "html", "md", "yaml", or a comma-separated list of formats.
-        """
-        self.output_dir = output_dir
-        os.makedirs(output_dir, exist_ok=True)
+    parser.add_argument(
+        "url",
+        help="スクレイピングするDeepWikiサイトのURL。"
+    )
 
-        # Parse output_format to handle multiple formats
-        self.output_formats = [fmt.strip().lower() for fmt in output_format.split(",")]
+    parser.add_argument(
+        "-o", "--output-dir",
+        default="output",
+        help="出力ファイルを保存するディレクトリ。デフォルト：output"
+    )
 
-        # Validate output formats
-        valid_formats = ["html", "md", "yaml"]
-        for fmt in self.output_formats:
-            if fmt not in valid_formats:
-                logger.warning(f"無効な出力フォーマット: {fmt}。'html'、'md'、または 'yaml' を使用してください。")
-                logger.warning(f"Invalid output format: {fmt}. Use 'html', 'md', or 'yaml'.")
-                self.output_formats.remove(fmt)
+    parser.add_argument(
+        "-n", "--library-name",
+        help="作成するライブラリの名前。デフォルト：URLから派生"
+    )
 
-        # Default to HTML if no valid formats are specified
-        if not self.output_formats:
-            logger.warning("有効な出力フォーマットが指定されていません。デフォルトの 'html' を使用します。")
-            logger.warning("No valid output formats specified. Using default 'html'.")
-            self.output_formats = ["html"]
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="詳細な出力を表示します。"
+    )
 
-        options = Options()
-        if headless:
-            options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+    parser.add_argument(
+        "--save-chat",
+        action="store_true",
+        help="チャット履歴をファイルに保存します。"
+    )
 
-        self.driver = webdriver.Chrome(options=options)
-        self.wait = WebDriverWait(self.driver, 20)
+    return parser.parse_args()
 
-    def send_chat_message(self, url, message, chat_selector="textarea", submit_selector="button[type='submit']",
-                          wait_time=5, debug=False, use_deep_research=False):
-        """
-        Send a chat message and retrieve the response.
 
-        Args:
-            url (str): The URL of the chat interface.
-            message (str): The message to send.
-            chat_selector (str): CSS selector for the chat input element.
-            submit_selector (str): CSS selector for the submit button.
-            wait_time (int): Time to wait for response in seconds.
-            debug (bool): Whether to enable debug mode.
-            use_deep_research (bool): Whether to enable the "深い研究" (Deep Research) toggle.
+def interactive_chat(results: List[Dict[str, Any]], save_chat: bool = False) -> None:
+    """
+    スクレイピングされたコンテンツとの対話的なチャットを開始します。
+    
+    Args:
+        results (List[Dict[str, Any]]): スクレイピングされたコンテンツを含む辞書のリスト。
+        save_chat (bool): チャット履歴をファイルに保存するかどうか。
+    """
+    print("\n=== DeepWikiチャット ===")
+    print("チャットを終了するには 'exit' または 'quit' と入力してください。")
+    print("コマンドのリストを表示するには 'help' と入力してください。")
+    print("利用可能なドキュメントを表示するには 'list' と入力してください。")
+    print("ドキュメントを読むには 'read <番号>' と入力してください。")
+    print("ドキュメント内で用語を検索するには 'search <用語>' と入力してください。")
+    print()
 
-        Returns:
-            str or None: The HTML of the response, or None if no response was found.
-        """
+    chat_history = []
+
+    while True:
         try:
-            logger.info(f"URLにアクセス中: {url}")
-            self.driver.get(url)
+            user_input = input("> ").strip()
 
-            # 現在のウィンドウハンドルを保存
-            # Save the current window handle
-            original_window = self.driver.current_window_handle
+            if user_input.lower() in ["exit", "quit"]:
+                break
 
-            # チャット入力要素を待機して取得
-            chat_input = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, chat_selector)))
+            chat_history.append({"user": user_input})
 
-            # 入力要素を含むフォームを見つける
-            # Find the form containing the input element
-            form_element = None
-            try:
-                form_element = chat_input.find_element(By.XPATH, "./ancestor::form")
-                logger.info("フォーム要素を見つけました")
-            except Exception as e:
-                logger.warning(f"フォーム要素が見つかりませんでした。直接セレクタを使用します: {e}")
+            if user_input.lower() == "help":
+                print("\nコマンド:")
+                print("  exit, quit - チャットを終了")
+                print("  help - このヘルプメッセージを表示")
+                print("  list - 利用可能なドキュメントを一覧表示")
+                print("  read <番号> - ドキュメントを読む")
+                print("  search <用語> - ドキュメント内で用語を検索")
+                chat_history.append({"system": "ヘルプメッセージを表示しました。"})
 
-            chat_input.clear()
-            chat_input.send_keys(message)
-            logger.info(f"メッセージ入力: {message}")
+            elif user_input.lower() == "list":
+                print("\n利用可能なドキュメント:")
+                for i, result in enumerate(results):
+                    print(f"  {i + 1}. {os.path.basename(result['filepath'])}")
+                chat_history.append({"system": "利用可能なドキュメントを一覧表示しました。"})
 
-            # 深い研究トグルを有効にする（存在する場合）
-            if use_deep_research:
+            elif user_input.lower().startswith("read "):
                 try:
-                    if form_element:
-                        # フォーム内で深い研究トグルを探す
-                        deep_research_label = form_element.find_element(By.XPATH,
-                                                                        ".//label[contains(text(), '深い研究')]")
-                        if deep_research_label:
-                            # ラベルの親要素からトグルを見つける
-                            toggle_div = deep_research_label.find_element(By.XPATH,
-                                                                          "./following-sibling::div[@id='useDeep']")
-                            if toggle_div:
-                                toggle_div.click()
-                                logger.info("「深い研究」トグルを有効化しました")
+                    index = int(user_input.split(" ")[1]) - 1
+                    if 0 <= index < len(results):
+                        filepath = results[index]["filepath"]
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        print(f"\n=== {os.path.basename(filepath)} ===")
+                        print(content)
+                        chat_history.append({"system": f"{os.path.basename(filepath)}のコンテンツを表示しました。"})
                     else:
-                        # フォームが見つからない場合は従来の方法で探す
-                        deep_research_label = self.driver.find_element(By.XPATH,
-                                                                       "//label[contains(text(), '深い研究')]")
-                        if deep_research_label:
-                            toggle_div = deep_research_label.find_element(By.XPATH,
-                                                                          "./following-sibling::div[@id='useDeep']")
-                            if toggle_div:
-                                toggle_div.click()
-                                logger.info("「深い研究」トグルを有効化しました")
-                except Exception as e:
-                    logger.warning(f"「深い研究」トグルが見つからないか、クリックできませんでした: {e}")
+                        print(f"無効なドキュメント番号です。1から{len(results)}までの数値を入力してください。")
+                        chat_history.append({"system": "無効なドキュメント番号です。"})
+                except (ValueError, IndexError):
+                    print("無効なコマンドです。'read <番号>'と入力してください。")
+                    chat_history.append({"system": "無効なコマンド形式です。"})
 
-            # 送信ボタンを探してクリック
-            submit_button = None
-            if form_element:
-                # フォーム内でボタンを探す（より信頼性が高い）
-                try:
-                    # まずフォーム内で指定されたセレクタを使用
-                    submit_button = form_element.find_element(By.CSS_SELECTOR, submit_selector)
-                    logger.info("フォーム内で指定されたセレクタでボタンを見つけました")
-                except Exception:
-                    # 指定されたセレクタが見つからない場合、フォーム内の任意のボタンを探す
-                    try:
-                        submit_button = form_element.find_element(By.CSS_SELECTOR, "button[type='submit']")
-                        logger.info("フォーム内でtype='submit'のボタンを見つけました")
-                    except Exception:
-                        try:
-                            # 最後の手段としてフォーム内の任意のボタンを探す
-                            submit_button = form_element.find_element(By.TAG_NAME, "button")
-                            logger.info("フォーム内で任意のボタンを見つけました")
-                        except Exception as e:
-                            logger.warning(f"フォーム内でボタンが見つかりませんでした: {e}")
+            elif user_input.lower().startswith("search "):
+                term = user_input[7:].strip()
+                if not term:
+                    print("検索語を入力してください。")
+                    chat_history.append({"system": "検索語が指定されていません。"})
+                    continue
 
-            # フォーム内でボタンが見つからなかった場合、従来の方法で探す
-            if not submit_button:
-                submit_button = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, submit_selector)))
-                logger.info("従来の方法でボタンを見つけました")
+                print(f"\n'{term}'を検索中...")
+                found = False
+                for i, result in enumerate(results):
+                    filepath = result["filepath"]
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    if term.lower() in content.lower():
+                        print(f"  {os.path.basename(filepath)} (ドキュメント {i + 1}) で見つかりました")
+                        found = True
 
-            # ボタンをクリック
-            submit_button.click()
-            logger.info("送信ボタンをクリック")
+                        # コンテキストを表示
+                        lines = content.split("\n")
+                        for j, line in enumerate(lines):
+                            if term.lower() in line.lower():
+                                start = max(0, j - 1)
+                                end = min(len(lines), j + 2)
+                                print(f"    コンテキスト:")
+                                for k in range(start, end):
+                                    if k == j:
+                                        print(f"    > {lines[k]}")
+                                    else:
+                                        print(f"      {lines[k]}")
+                                print()
 
-            # 新しいタブが開いたかチェック
-            # Check if a new tab has opened
-            wait_new_tab = WebDriverWait(self.driver, 5)
-            try:
-                # 新しいウィンドウが開くのを待機
-                # Wait for a new window to open
-                wait_new_tab.until(lambda d: len(d.window_handles) > 1)
-                logger.info("新しいタブが開きました")
+                if not found:
+                    print(f"  '{term}'の検索結果は見つかりませんでした。")
 
-                # 新しいタブに切り替え
-                # Switch to the new tab
-                for window_handle in self.driver.window_handles:
-                    if window_handle != original_window:
-                        self.driver.switch_to.window(window_handle)
-                        logger.info("新しいタブに切り替えました")
-                        break
-            except Exception as e:
-                logger.info(f"新しいタブは開きませんでした: {e}")
+                chat_history.append({"system": f"'{term}'を検索しました。"})
 
-            # サムズアップ/ダウンボタンが表示されるのを待機（メッセージ完了の指標）
-            # Wait for thumbs up/down buttons to appear (indicator of message completion)
-            thumbs_selector = "div.flex.items-center.gap-1.text-neutral-300"
-            try:
-                # 最大wait_time秒間待機
-                # Wait for a maximum of wait_time seconds
-                thumbs_wait = WebDriverWait(self.driver, wait_time)
-                thumbs_wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, thumbs_selector)))
-                logger.info("サムズアップ/ダウンボタンが表示されました（メッセージ完了）")
-            except Exception as e:
-                logger.warning(f"サムズアップ/ダウンボタンが表示されませんでした: {e}")
-                # 固定の待機時間を使用
-                # Use fixed wait time as fallback
-                logger.info(f"{wait_time}秒間待機中...")
-                time.sleep(wait_time)
-
-            # レスポンス要素を取得
-            response_html = self._extract_response_html()
-            if response_html:
-                self._save_response(response_html, message)
-                return response_html
             else:
-                logger.warning("レスポンスが見つかりませんでした")
-                return None
+                print("不明なコマンドです。コマンドのリストを表示するには 'help' と入力してください。")
+                chat_history.append({"system": "不明なコマンドです。"})
+
+        except KeyboardInterrupt:
+            print("\nチャットを終了しています...")
+            break
 
         except Exception as e:
-            logger.error(f"エラーが発生しました: {e}")
-            return None
+            print(f"エラー: {e}")
+            chat_history.append({"system": f"エラー: {e}"})
 
-    def _extract_response_html(self):
-        # 可能性のあるセレクターのリスト
-        selectors = [
-            'div.prose-custom',
-            'div.dark\\:\\[\\&amp\\;_pre\\:has\\(code\\)\\]\\:bg-shade',
-            '.chat-response',
-            '.message-content',
-            '.response-content',
-            '.ai-response',
-            'div[role="presentation"]',
-            'div.chat-message',
-            'div.response',
-            # 新しいタブでのレスポンス要素のセレクター
-            # Selectors for response elements in the new tab
-            'main article',
-            'main .content',
-            'article',
-            '.markdown-body'
-        ]
+    print("\nチャットが終了しました。")
 
-        for selector in selectors:
-            try:
-                element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                if element and element.text.strip():
-                    logger.info(f"レスポンス要素を発見: {selector}")
-
-                    # サムズアップ/ダウンボタンが存在するか確認
-                    # Check if thumbs up/down buttons exist
-                    thumbs_selector = "div.flex.items-center.gap-1.text-neutral-300"
-                    try:
-                        thumbs_element = self.driver.find_element(By.CSS_SELECTOR, thumbs_selector)
-                        logger.info("サムズアップ/ダウンボタンを発見")
-
-                        # サムズアップ/ダウンボタンを含むレスポンスを返す
-                        # Return the response including thumbs up/down buttons
-                        full_html = element.get_attribute("outerHTML")
-                        thumbs_html = thumbs_element.get_attribute("outerHTML")
-                        return f"{full_html}\n{thumbs_html}"
-                    except:
-                        # サムズアップ/ダウンボタンが見つからない場合は通常のレスポンスを返す
-                        # Return the normal response if thumbs up/down buttons are not found
-                        return element.get_attribute("outerHTML")
-            except Exception as e:
-                continue
-
-        logger.warning("レスポンス要素が見つかりませんでした")
-        return None
-
-    def _html_to_markdown(self, html_content):
-        """
-        Convert HTML content to Markdown.
-
-        Args:
-            html_content (str): The HTML content to convert.
-
-        Returns:
-            str: The Markdown content.
-        """
-        return html_to_markdown(html_content)
-
-    def _html_to_yaml(self, html_content):
-        """
-        Convert HTML content to YAML.
-
-        Args:
-            html_content (str): The HTML content to convert.
-
-        Returns:
-            str: The YAML content.
-        """
-        return html_to_yaml(html_content)
-
-    def _markdown_to_yaml(self, markdown_content):
-        """
-        Convert Markdown content to YAML while preserving formatting.
-
-        Args:
-            markdown_content (str): The Markdown content to convert.
-
-        Returns:
-            str: The YAML content.
-        """
-        return markdown_to_yaml(markdown_content)
-
-    def _save_response(self, html_content, query):
-        """
-        Save the response in the specified formats.
-
-        Args:
-            html_content (str): The HTML content to save.
-            query (str): The query that generated the response.
-        """
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        query_part = re.sub(r'[^\w\s]', '', query)[:20].strip().replace(' ', '_')
-        base_filename = f"{timestamp}_{query_part}"
-
-        saved_files = []
-
-        # Save in each specified format
-        for fmt in self.output_formats:
-            if fmt == "html":
-                # Save as HTML
-                html_filename = f"{base_filename}.html"
-                html_file_path = os.path.join(self.output_dir, html_filename)
-                with open(html_file_path, 'w', encoding='utf-8') as f:
-                    f.write(html_content)
-                saved_files.append(html_file_path)
-                logger.info(f"HTMLレスポンスを保存しました: {html_file_path}")
-                logger.info(f"Saved HTML response: {html_file_path}")
-
-            elif fmt == "md":
-                # Convert to Markdown and save
-                markdown_content = self._html_to_markdown(html_content)
-                if markdown_content:
-                    md_filename = f"{base_filename}.md"
-                    md_file_path = os.path.join(self.output_dir, md_filename)
-                    with open(md_file_path, 'w', encoding='utf-8') as f:
-                        f.write(markdown_content)
-                    saved_files.append(md_file_path)
-                    logger.info(f"Markdownレスポンスを保存しました: {md_file_path}")
-                    logger.info(f"Saved Markdown response: {md_file_path}")
-
-            elif fmt == "yaml":
-                # If we already have Markdown content, convert directly from Markdown to YAML
-                # This preserves formatting better than going through HTML
-                if 'md' in self.output_formats and 'markdown_content' in locals():
-                    yaml_content = self._markdown_to_yaml(markdown_content)
-                else:
-                    # Otherwise convert from HTML to YAML
-                    yaml_content = self._html_to_yaml(html_content)
-
-                if yaml_content:
-                    yaml_filename = f"{base_filename}.yaml"
-                    yaml_file_path = os.path.join(self.output_dir, yaml_filename)
-                    with open(yaml_file_path, 'w', encoding='utf-8') as f:
-                        f.write(yaml_content)
-                    saved_files.append(yaml_file_path)
-                    logger.info(f"YAMLレスポンスを保存しました: {yaml_file_path}")
-                    logger.info(f"Saved YAML response: {yaml_file_path}")
-
-        return saved_files
-
-    def close(self):
-        self.driver.quit()
+    if save_chat and chat_history:
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        chat_file = f"chat_history_{timestamp}.json"
+        with open(chat_file, "w", encoding="utf-8") as f:
+            json.dump(chat_history, f, indent=2, ensure_ascii=False)
+        print(f"チャット履歴が{chat_file}に保存されました")
 
 
-def convert_md_to_yaml(md_file_path, output_dir=None):
+def main() -> int:
     """
-    Convert an existing Markdown file to YAML format.
-
-    Args:
-        md_file_path (str): Path to the Markdown file
-        output_dir (str, optional): Directory to save the YAML file. If None, saves in the same directory as the Markdown file.
-
+    コマンドラインツールのメイン関数。
+    
     Returns:
-        str: Path to the created YAML file
+        int: 終了コード。
     """
-    # Use the imported function from md_to_yaml module
-    return convert_md_file_to_yaml(md_file_path, output_dir)
+    args = parse_args()
 
-
-def parse_arguments():
-    """
-    コマンドライン引数を解析する
-    Parse command line arguments
-    """
-    parser = argparse.ArgumentParser(description="DeepWiki Chat Scraper")
-
-    # Add a subparser for the convert mode
-    subparsers = parser.add_subparsers(dest="mode", help="操作モード (Operation mode)")
-
-    # Convert mode parser
-    convert_parser = subparsers.add_parser("convert", help="変換モード (Convert mode)")
-    convert_parser.add_argument("--md", required=True,
-                                help="変換するMarkdownファイルのパス (Path to Markdown file to convert)")
-    convert_parser.add_argument("--output",
-                                help="出力ディレクトリ (Output directory) [デフォルト: 入力ファイルと同じディレクトリ]")
-
-    # Add chat mode arguments to the main parser for backward compatibility
-    parser.add_argument("--url", help="チャットインターフェースのURL (URL of the chat interface)")
-    parser.add_argument("--message", help="送信するメッセージ (Message to send)")
-    parser.add_argument("--selector", default="textarea",
-                        help="チャット入力要素のCSSセレクタ (CSS selector for the chat input element) [デフォルト: textarea]")
-    parser.add_argument("--button", default="button",
-                        help="送信ボタンのCSSセレクタ (CSS selector for the submit button) [デフォルト: button[type='submit']]")
-    parser.add_argument("--wait", type=int, default=30,
-                        help="レスポンスを待つ時間（秒） (Time to wait for response in seconds) [デフォルト: 30]")
-    parser.add_argument("--debug", action="store_true", help="デバッグモードを有効にする (Enable debug mode)")
-    parser.add_argument("--output", default="ChatResponses",
-                        help="出力ディレクトリ (Output directory) [デフォルト: ChatResponses]")
-    parser.add_argument("--deep", action="store_true", help="「深い研究」モードを有効にする (Enable Deep Research mode)")
-    parser.add_argument("--headless", action="store_true", help="ヘッドレスモードを有効にする (Enable headless mode)")
-    parser.add_argument("--format", default="html",
-                        help="出力フォーマット（html, md, yaml、またはカンマ区切りのリスト） (Output format (html, md, yaml, or a comma-separated list)) [デフォルト: html]")
-
-    args = parser.parse_args()
-
-    # Set default mode to chat if not specified or if chat-related arguments are provided
-    if args.mode is None:
-        if args.url or args.message:
-            args.mode = "chat"
+    # ライブラリ名が指定されていない場合はURLから派生させる
+    if not args.library_name:
+        from urllib.parse import urlparse
+        parsed = urlparse(args.url)
+        path = parsed.path.strip("/")
+        if path:
+            args.library_name = path.split("/")[-1]
         else:
-            args.mode = "chat"  # Default to chat mode
+            args.library_name = parsed.netloc.split(".")[0]
 
-    # Validate required arguments for chat mode
-    if args.mode == "chat" and (args.url is None or args.message is None):
-        parser.error("Chat mode requires --url and --message arguments")
+    # 設定を作成
+    config = Config(
+        url=args.url,
+        library_name=args.library_name,
+        output_dir=args.output_dir,
+        verbose=args.verbose
+    )
 
-    return args
+    # スクレイパーを作成
+    scraper = DeepwikiScraper(config)
 
+    try:
+        # コンテンツをスクレイピング
+        logger.info(f"からコンテンツをスクレイピングしています {args.url}")
+        results = scraper.scrape()
 
-def main():
-    # コマンドライン引数を解析
-    # Parse command line arguments
-    args = parse_arguments()
+        if not results:
+            logger.error("コンテンツのスクレイピングに失敗しました。")
+            return 1
 
-    # モードに応じて処理を分岐
-    # Branch processing according to mode
-    if args.mode == "convert":
-        # Markdown to YAML conversion mode
-        print(f"Markdownファイルを変換中: {args.md}")
-        print(f"Converting Markdown file: {args.md}")
+        logger.info(f"{len(results)}ページのスクレイピングに成功しました。")
 
-        yaml_file = convert_md_to_yaml(args.md, args.output)
+        # 対話的なチャットを開始
+        interactive_chat(results, args.save_chat)
 
-        if yaml_file:
-            print(f"YAMLファイルを作成しました: {yaml_file}")
-            print(f"Created YAML file: {yaml_file}")
-        else:
-            print("変換に失敗しました")
-            print("Conversion failed")
-    else:  # "chat" mode (default)
-        # スクレイパーを初期化
-        # Initialize the scraper
-        scraper = ChatScraperSelenium(
-            output_dir=args.output,
-            headless=args.headless,
-            output_format=args.format
-        )
+        return 0
+    except Exception as e:
+        logger.exception(f"チャットモードでのエラー: {e}")
+        return 1
 
-        try:
-            # メッセージを送信
-            # Send the message
-            print(f"URLにアクセス中: {args.url}")
-            print(f"メッセージ: {args.message}")
-            if args.deep:
-                print("「深い研究」モードが有効です")
-            print(f"出力フォーマット: {args.format}")
-            print(f"Output format: {args.format}")
-
-            response = scraper.send_chat_message(
-                url=args.url,
-                message=args.message,
-                chat_selector=args.selector,
-                submit_selector=args.button,
-                wait_time=args.wait,
-                debug=args.debug,
-                use_deep_research=args.deep
-            )
-
-            if response:
-                print("レスポンスを取得しました")
-                print("Response retrieved")
-            else:
-                print("レスポンスの取得に失敗しました")
-                print("Failed to retrieve response")
-
-        finally:
-            # ブラウザを閉じる
-            # Close the browser
-            scraper.close()
 if __name__ == "__main__":
-    main()
-
-# 使用例:
-# チャットモード (Chat mode):
-# python -m deepwiki_to_md.test_chat --url "https://deepwiki.com/yuyu1815/deepwiki_to_md" --message "こんにちは" --wait 10 --debug
-# python -m deepwiki_to_md.test_chat --url "https://deepwiki.com/yuyu1815/deepwiki_to_md" --message "詳細な説明をお願いします" --wait 15 --deep --debug
-# python -m deepwiki_to_md.test_chat --url "https://deepwiki.com/yuyu1815/deepwiki_to_md" --message "こんにちは" --format "md" --wait 10 --debug
-# python -m deepwiki_to_md.test_chat --url "https://deepwiki.com/yuyu1815/deepwiki_to_md" --message "詳細な説明をお願いします" --format "yaml" --wait 15 --debug
-# python -m deepwiki_to_md.test_chat --url "https://deepwiki.com/yuyu1815/deepwiki_to_md" --message "詳細な説明をお願いします" --format "html,md,yaml" --wait 15 --deep --debug
-#
-# 変換モード (Convert mode):
-# python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md"
-# python -m deepwiki_to_md.test_chat convert --md "path/to/markdown/file.md" --output "path/to/output/directory"
-#
-# 注意: ボタンセレクタの指定について
-# --button オプションでボタンのCSSセレクタを指定できますが、より確実にクリックするために
-# スクリプトはまずフォーム内のボタンを探し、見つからない場合のみ指定されたセレクタを使用します。
-# 
-# Note: About button selector specification
-# You can specify the CSS selector for the button with the --button option, but for more reliable clicking,
-# the script first looks for buttons within the form, and only uses the specified selector if none are found.
+    sys.exit(main())

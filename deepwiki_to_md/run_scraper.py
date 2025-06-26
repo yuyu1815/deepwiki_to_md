@@ -1,103 +1,136 @@
-import argparse
+"""
+DeepWikiからMarkdownへのコンバーターのコマンドラインツール。
+"""
+
+import logging
 import sys
 
-import requests
+import argparse
 
-from .deepwiki_to_md import DeepwikiScraper
-from .localization import get_message
+from deepwiki_to_md import DeepwikiScraper
+from deepwiki_to_md.models.config import Config
 
-
-def parse_arguments():
-    """Parse command line arguments."""
-    # """コマンドライン引数を解析する。"""
-    parser = argparse.ArgumentParser(description=get_message('scraper_description'))
-
-    parser.add_argument('--library', '-l', action='append', nargs=2, metavar=('NAME', 'URL'),
-                        help=get_message('library_help'))
-
-    parser.add_argument('--output-dir', '-o', default='Documents',
-                        help=get_message('output_dir_help', default='Documents'))
-
-    parser.add_argument('--use-direct-scraper', action='store_true',
-                        help=get_message('use_direct_scraper_help'))
-
-    # 代替スクレイパーの引数は削除されました
-
-    parser.add_argument('--use-direct-md-scraper', action='store_true',
-                        help=get_message('use_direct_md_scraper_help'))
-
-    parser.add_argument('--no-direct-md-scraper', action='store_true',
-                        help=get_message('no_direct_md_scraper_help'))
-
-    # Selenium-related arguments removed - only static requests are supported
-    # Selenium関連の引数は削除されました - 静的リクエストのみがサポートされています
-
-    parser.add_argument('library_url', nargs='?',
-                        help=get_message('library_url_help'))
-
-    args = parser.parse_args()
-
-    # Handle the case where a library URL is provided as a positional argument
-    # ライブラリURLが位置引数として提供された場合の処理
-    if args.library_url and not args.library:
-        # Extract library name from URL path
-        # URLパスからライブラリ名を抽出
-        from urllib.parse import urlparse
-        path = urlparse(args.library_url).path.strip('/')
-        library_name = path.split('/')[-1] if path else 'library'
-        args.library = [(library_name, args.library_url)]
-
-    # Validate arguments
-    # 引数の検証
-    if not args.library and not args.library_url:
-        parser.error(get_message('library_required_error'))
-
-    return args
+# ロギング設定
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
-def main():
-    """Main function to run the scraper."""
-    # """スクレイパーを実行するメイン関数。"""
-    args = parse_arguments()
-
-    # Format libraries as expected by DeepwikiScraper
-    # DeepwikiScraperが期待する形式にライブラリをフォーマット
-    libraries = [
-        {"name": name, "url": url}
-        for name, url in args.library
-    ]
-
-    # Determine whether to use DirectDeepwikiScraper
-    # DirectDeepwikiScraperを使用するかどうかを決定
-    use_direct_scraper = args.use_direct_scraper
-
-    # 代替スクレイパーの機能は削除されました
-
-    # Create and run the scraper
-    # スクレイパーを作成して実行
-    scraper = DeepwikiScraper(
-        output_dir=args.output_dir,
-        use_direct_scraper=use_direct_scraper,
+def parse_args() -> argparse.Namespace:
+    """
+    コマンドライン引数を解析します。
+    
+    Returns:
+        argparse.Namespace: 解析された引数。
+    """
+    parser = argparse.ArgumentParser(
+        description="DeepWikiサイトからコンテンツをスクレイピングし、Markdown形式に変換します。"
     )
 
-    try:
-        # Process each library
-        for library in libraries:
-            name = library['name']
-            url = library['url']
-            print(get_message('scraping_library', library_name=name))
-            saved_files = scraper.scrape_library(url, name)
-            if saved_files:
-                print(get_message('library_scraping_completed', library_name=name, count=len(saved_files)))
-            else:
-                print(get_message('library_scraping_failed', library_name=name))
-        
-        print(get_message('scraping_completed', output_dir=args.output_dir))
-        return 0
-    except requests.exceptions.RequestException as e:
-        print(get_message('error', error=e), file=sys.stderr)
-        return 1
+    parser.add_argument(
+        "url",
+        help="スクレイピングするDeepWikiサイトのURL。"
+    )
 
+    parser.add_argument(
+        "-o", "--output-dir",
+        default="output",
+        help="出力ファイルを保存するディレクトリ。デフォルト：output"
+    )
+
+    parser.add_argument(
+        "-n", "--library-name",
+        help="作成するライブラリの名前。デフォルト：URLから派生"
+    )
+
+    parser.add_argument(
+        "-d", "--max-depth",
+        type=int,
+        default=1,
+        help="クロールする最大深度。デフォルト：1"
+    )
+
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="詳細な出力を表示します。"
+    )
+
+    parser.add_argument(
+        "-t", "--timeout",
+        type=int,
+        default=30,
+        help="HTTPリクエストのタイムアウト（秒）。デフォルト：30"
+    )
+
+    parser.add_argument(
+        "-r", "--retry-limit",
+        type=int,
+        default=3,
+        help="失敗したリクエストの最大再試行回数。デフォルト：3"
+    )
+
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.5,
+        help="リクエスト間の遅延（秒）。デフォルト：0.5"
+    )
+
+    return parser.parse_args()
+
+
+def main() -> int:
+    """
+    コマンドラインツールのメイン関数。
+    
+    Returns:
+        int: 終了コード。
+    """
+    args = parse_args()
+
+    # ライブラリ名が指定されていない場合はURLから派生させる
+    if not args.library_name:
+        from urllib.parse import urlparse
+        parsed = urlparse(args.url)
+        path = parsed.path.strip("/")
+        if path:
+            args.library_name = path.split("/")[-1]
+        else:
+            args.library_name = parsed.netloc.split(".")[0]
+
+    # 設定を作成
+    config = Config(
+        url=args.url,
+        library_name=args.library_name,
+        output_dir=args.output_dir,
+        max_depth=args.max_depth,
+        verbose=args.verbose,
+        timeout=args.timeout,
+        retry_limit=args.retry_limit,
+        delay=args.delay
+    )
+
+    # スクレイパーを作成
+    scraper = DeepwikiScraper(config)
+    
+    try:
+        # コンテンツをスクレイピング
+        logger.info(f"{args.url}からコンテンツをスクレイピングしています")
+        results = scraper.scrape()
+
+        # 結果を出力
+        if results:
+            logger.info(f"{len(results)}ページのスクレイピングに成功しました。")
+            for result in results:
+                logger.info(f"  - {result['url']} -> {result['filepath']}")
+        else:
+            logger.error("コンテンツのスクレイピングに失敗しました。")
+            return 1
+            
+        return 0
+    except Exception as e:
+        logger.exception(f"コンテンツのスクレイピング中にエラーが発生しました: {e}")
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
