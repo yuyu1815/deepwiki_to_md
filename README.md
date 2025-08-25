@@ -9,7 +9,6 @@ A powerful Python tool designed to scrape content from deepwiki sites and conver
 - Scrapes content from deepwiki sites using multiple strategies:
   - Direct Markdown Fetching (default)
   - Direct HTML Scraping with conversion
-  - Simple static fallback
 - Extracts navigation items from specified UI elements to traverse libraries
 - Converts HTML content to Markdown format using `markdownify`
 - Saves the converted files in an organized directory structure
@@ -366,12 +365,7 @@ The tool offers different scraping strategies to maximize compatibility and outp
   - Identifies the main content area using a list of potential CSS selectors
   - Uses the markdownify library to convert the selected HTML content to Markdown
   - Saves the converted Markdown
-- **Advantage**: More robust than basic static scraping if direct Markdown fetching fails or is unavailable.
-
-### 3. Alternative Scraper Fallback
-
-- **Priority**: Lowest (used as a fallback if `--use-alternative-scraper` is enabled).
-- **Method**: A simpler static requests mechanism with specific headers designed to fetch the page HTML reliably.
+- **Advantage**: More robust than basic static scraping for dynamic content sites like Deepwiki.
 
 ## Markdown to YAML Conversion Utility
 

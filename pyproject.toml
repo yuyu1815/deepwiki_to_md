@@ -1,0 +1,21 @@
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "--cov=deepwiki_to_md",
+    "--cov-report=html:htmlcov",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--html=reports/pytest_report.html",
+    "--self-contained-html",
+    "-v"
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "slow: Tests that take a long time to run"
+]
