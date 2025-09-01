@@ -1,21 +1,170 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepwiki-to-md"
+version = "2.0.0"
+description = "Extensible Next.js/DeepWiki content extractor with zero external dependencies"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "DeepWiki Extractor Team", email = "contact@example.com"}
+]
+maintainers = [
+    {name = "DeepWiki Extractor Team", email = "contact@example.com"}
+]
+keywords = [
+    "scraping", 
+    "nextjs", 
+    "deepwiki", 
+    "markdown", 
+    "extraction", 
+    "content",
+    "zero-dependency"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+requires-python = ">=3.7"
+dependencies = []  # Zero external dependencies - pure Python stdlib only
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.12.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+]
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.20.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yuyu1815/deepwiki_to_md"
+"Repository" = "https://github.com/yuyu1815/deepwiki_to_md"
+"Bug Tracker" = "https://github.com/yuyu1815/deepwiki_to_md/issues"
+"Documentation" = "https://github.com/yuyu1815/deepwiki_to_md/blob/main/docs/"
+"Changelog" = "https://github.com/yuyu1815/deepwiki_to_md/blob/main/docs/CHANGELOG.md"
+
+[project.scripts]
+deepwiki-to-md = "cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["deepwiki_to_md", "cli"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["deepwiki_to_md*"]
+exclude = ["tests*", "docs*", "examples*", "scripts*"]
+
+# Development tools configuration
+[tool.black]
+line-length = 88
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | tests/fixtures
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
+
+[tool.mypy]
+python_version = "3.7"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = [
-    "--cov=deepwiki_to_md",
-    "--cov-report=html:htmlcov",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src.html_formatter",
+    "--cov=src.deepwiki_to_md",
     "--cov-report=term-missing",
+    "--cov-report=html",
     "--cov-report=xml",
-    "--html=reports/pytest_report.html",
-    "--self-contained-html",
-    "-v"
 ]
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "e2e: End-to-end tests",
-    "slow: Tests that take a long time to run"
+    "slow: Slow tests that make real HTTP requests",
+    "network: Tests that require network access",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "tests/*",
+    "scripts/*",
+    "examples/*",
+    "config/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
 ]
