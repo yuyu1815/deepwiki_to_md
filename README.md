@@ -1,5 +1,17 @@
 # Deepwiki to Markdown Converter
 
+
+# Project Status
+
+⚠️ **Under Modification**
+
+This project is currently undergoing behavior changes and adjustments.  
+Please note that the implementation may not work as expected at the moment.
+
+We will update this repository once the changes are completed.  
+Thank you for your patience and understanding.
+
+
 > **The Japanese version of this document is available at [README_ja.md](./README_ja.md).**
 
 A powerful Python tool designed to scrape content from deepwiki sites and convert it to clean Markdown format. It offers multiple scraping strategies and functions for data processing.
