@@ -1,0 +1,32 @@
+{
+    "headers": {
+        "Host": "api.devin.ai",
+        "Content-Length": "349",
+        "Sec-Ch-Ua-Platform": "\"macOS\"",
+        "Accept-Language": "ja",
+        "Sec-Ch-Ua": "\"Chromium\";v=\"139\", \"Not;A=Brand\";v=\"99\"",
+        "Content-Type": "application/json",
+        "Sec-Ch-Ua-Mobile": "?0",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Origin": "https://deepwiki.com",
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
+        "Referer": "https://deepwiki.com/",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Priority": "u=4, i"
+    },
+    "body_template": {
+        "engine_id": "multihop",
+        "user_query": "<relevant_context>This query was sent from the wiki page: VS Code Architecture Overview.</relevant_context>pluginの仕組みを教えて",
+        "keywords": [],
+        "repo_names": [
+            "microsoft/vscode"
+        ],
+        "additional_context": "",
+        "query_id": "plugin_3b6b0fb5-14ff-4d76-a8b9-758425e82f4d",
+        "use_notes": false,
+        "generate_summary": false
+    }
+}

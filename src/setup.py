@@ -1,29 +1,21 @@
 #!/usr/bin/env python3
 """
-Setup script for deepwiki-to-md package.
+DeepWiki-to-MD パッケージのセットアップスクリプト。
 
-This package is designed with zero external dependencies for maximum portability
-and minimal maintenance overhead.
+このパッケージは外部依存ゼロを目指し、移植性と保守性を最大化しています。
 """
 
 from setuptools import setup, find_packages
-import os
 import sys
 from pathlib import Path
 
-# Ensure we're using Python 3.7+
-if sys.version_info < (3, 7):
-    print("ERROR: deepwiki-to-md requires Python 3.7 or later.")
-    print(f"You are using Python {sys.version}")
-    sys.exit(1)
-
-# Get the long description from README
+# README から長い説明文を取得する / Get the long description from README
 here = Path(__file__).parent.parent  # Go up one level from src/
 long_description = (here / "README.md").read_text(encoding="utf-8")
 
-# Read version from package
+# バージョン情報をパッケージから取得する / Read version from package
 def get_version():
-    """Get version from deepwiki_to_md package."""
+    """deepwiki_to_md パッケージからバージョンを取得する。"""
     try:
         # Try to read from __init__.py
         init_file = here / "src" / "deepwiki_to_md" / "__init__.py"
@@ -38,13 +30,13 @@ def get_version():
     except Exception:
         return "2.0.0"
 
-# Get requirements (should be empty for zero-dependency design)
+# 依存関係（ゼロ依存設計のため基本的に空）/ Get requirements (should be empty for zero-dependency design)
 def get_requirements():
-    """Get runtime requirements (intentionally empty)."""
+    """実行時の依存関係を取得する（基本的に空）。"""
     req_file = here / "requirements.txt"
     if req_file.exists():
         content = req_file.read_text(encoding="utf-8")
-        # Filter out comments and empty lines
+        # コメント行と空行を除外する / Filter out comments and empty lines
         requirements = []
         for line in content.split('\n'):
             line = line.strip()
@@ -54,7 +46,7 @@ def get_requirements():
     return []
 
 def get_dev_requirements():
-    """Get development requirements."""
+    """開発用の依存関係を取得する。"""
     req_file = here / "requirements-dev.txt" 
     if req_file.exists():
         content = req_file.read_text(encoding="utf-8")
@@ -67,20 +59,20 @@ def get_dev_requirements():
     return []
 
 setup(
-    # Basic package information
+    # 基本的なパッケージ情報 / Basic package information
     name="deepwiki-to-md",
     version=get_version(),
     description="Zero-dependency Next.js/DeepWiki content extractor with pluggable strategies",
     long_description=long_description,
     long_description_content_type="text/markdown",
     
-    # Author and contact information
+    # 著者と連絡先情報 / Author and contact information
     author="DeepWiki Content Extractor Team",
     author_email="contact@example.com",  # Update with actual contact
     maintainer="DeepWiki Content Extractor Team",
     maintainer_email="contact@example.com",
     
-    # URLs and links
+    # URL とリンク / URLs and links
     url="https://github.com/yuyu1815/deepwiki_to_md",
     project_urls={
         "Bug Tracker": "https://github.com/yuyu1815/deepwiki_to_md/issues",
@@ -89,11 +81,11 @@ setup(
         "Changelog": "https://github.com/yuyu1815/deepwiki_to_md/blob/main/CHANGELOG.md",
     },
     
-    # Package discovery and structure
+    # パッケージの検出と構成 / Package discovery and structure
     packages=find_packages(exclude=["tests", "tests.*", "docs", "docs.*"]),
     package_dir={"": "."},
     
-    # Include non-Python files
+    # 非Pythonファイルを含める / Include non-Python files
     include_package_data=True,
     package_data={
         "deepwiki_to_md": [
@@ -108,13 +100,13 @@ setup(
         ],
     },
     
-    # Python version requirement
+    # 対応するPythonバージョンの要件 / Python version requirement
     python_requires=">=3.7",
     
-    # Dependencies (intentionally minimal/empty)
+    # 依存関係（意図的に最小/空）/ Dependencies (intentionally minimal/empty)
     install_requires=get_requirements(),
     
-    # Optional dependencies for enhanced functionality
+    # 機能拡張のためのオプション依存関係 / Optional dependencies for enhanced functionality
     extras_require={
         "dev": get_dev_requirements(),
         "test": [
@@ -133,17 +125,14 @@ setup(
         ],
     },
     
-    # Entry points for command-line tools
+    # コマンドラインツールのエントリポイント / Entry points for command-line tools
     entry_points={
         "console_scripts": [
-            "deepwiki-to-md=html_formatter:main",
-            "html-formatter=html_formatter:main",  # Legacy alias
-            "url-check=deepwiki_to_md.url_check_cli:main",
-            "md-scraper=deepwiki_to_md.direct_md_scraper:main",
+            "deepwiki-to-md=cli:main",
         ],
     },
     
-    # Classification and metadata
+    # 分類とメタデータ / Classification and metadata
     classifiers=[
         # Development Status
         "Development Status :: 5 - Production/Stable",
@@ -189,20 +178,20 @@ setup(
         "Natural Language :: Japanese",
     ],
     
-    # Keywords for discovery
+    # 検索用キーワード / Keywords for discovery
     keywords=[
         "markdown", "html", "nextjs", "content-extraction", 
         "web-scraping", "deepwiki", "zero-dependency",
         "cli-tool", "content-converter", "documentation",
     ],
     
-    # Testing
+    # テスト設定 / Testing
     test_suite="tests",
     
-    # Zip safety
+    # Zip セーフティ / Zip safety
     zip_safe=False,
     
-    # Platform compatibility
+    # 対応プラットフォーム / Platform compatibility
     platforms=["any"],
     
     # License
@@ -221,12 +210,12 @@ setup(
 
 # Post-installation message
 def print_installation_message():
-    """Print helpful message after installation."""
+    """インストール後に役立つメッセージを表示する。"""
     print("\n" + "="*60)
     print("🎉 deepwiki-to-md installed successfully!")
     print("="*60)
     print("\nQuick start:")
-    print("  deepwiki-to-md --to-md https://deepwiki.com/example")
+    print("  deepwiki-to-md https://deepwiki.com/path --path ./.deepwiki")
     print("  url-check --url https://example.com")
     print("  md-scraper --help")
     print("\nDocumentation:")

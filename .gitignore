@@ -164,20 +164,17 @@ debug_*.py
 test_run_*.py
 
 # Built documentation
-docs/_build/
 docs/site/
 
 # Log files
-*.log
 
 # Backup files
 *.bak
 *.backup
-*~
 
 # Output from example scripts
 examples/output/
 examples/*.output.*
 .qoder/
 .deepwiki/
-test
+request_test

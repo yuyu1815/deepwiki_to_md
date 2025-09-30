@@ -1,78 +1,83 @@
 #!/usr/bin/env python3
 """
-deepwikimd.py - Extensible Next.js/DeepWiki Content Extractor
+Next.js/DeepWiki 由来の HTML/スクリプトから Markdown 風テキストを抽出する拡張可能なツール。
 
-Purpose:
-    A powerful yet simple CLI tool that extracts human-readable Markdown-like text from 
-    Next.js/DeepWiki style script payloads with pluggable extraction strategies.
+目的:
+    複数の抽出戦略（プラグイン可能）で、人間可読なテキストをシンプルに抽出する CLI を提供する。
 
-Architecture:
-    - Strategy Pattern: Multiple extraction methods (NextJS, RSC, fallback)
-    - Configuration-driven: Easy customization via config classes
-    - Extensible: Add new strategies without modifying core logic
-    - Maintainable: Clear separation of concerns for 6-month maintenance
+設計:
+    - ストラテジーパターン: NextJS / RSC / フォールバックなど複数方式を切替
+    - 設定駆動: Config クラスで調整しやすい
+    - 拡張容易: コアを変更せず戦略を追加可能
+    - 保守容易: 関心の分離により半年後でも理解しやすい
 
-Maintenance Notes (read-me-in-6-months):
-    - New strategies: Inherit from ExtractionStrategy, register in StrategyManager
-    - Heuristics: Modify ExtractionConfig constants
-    - New output formats: Extend OutputFormatter class
-    - HTTP tweaks: Adjust HTTPConfig settings
+保守メモ:
+    - 戦略を追加する場合: ExtractionStrategy を継承し StrategyManager に登録
+    - ヒューリスティック調整: ExtractionConfig の定数を編集
+    - 出力拡張: OutputFormatter を拡張
+    - HTTP 調整: HTTPConfig の設定を変更
 
-Usage:
-    # Extract from local HTML file
+使い方:
+    # ローカル HTML ファイルから抽出
     python3 deepwikimd.py sample.html --path ./output
-    
-    # Extract from URL
+
+    # URL から抽出
     python3 deepwikimd.py https://deepwiki.com/path --path ./output
 """
 
-import sys
-import re
 import json
 import logging
 import os
+import re
+from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
-from abc import ABC, abstractmethod
 
+
+def normalize_deepwiki_url( raw):
+    """DeepWiki用のURLを正規化する。"""
+    # パス形式の文字列（/owner/repo or owner/repo）であればURLに変換する
+    if raw.startswith("/") or ("/" in raw and " " not in raw):
+        return f"https://deepwiki.com/{raw.strip('/')}"
+    return raw
 
 # ============================================================================
-# CONFIGURATION CLASSES (6-month maintenance point)
+# 設定クラス（6カ月保守ポイント）/ CONFIGURATION CLASSES (6-month maintenance point)
 # ============================================================================
 
 class ExtractionConfig:
-    """Extraction processing configuration
+    """抽出処理の設定
     
-    6-month maintenance points:
-    - Add new CONTENT_MARKERS for new content types
-    - Adjust NOISE_PATTERNS for new frameworks
-    - Modify MIN/MAX_CHUNK_LENGTH for performance tuning
+    保守メモ（半年後の自分へ）:
+    - 新しいコンテンツ種別に応じて CONTENT_MARKERS を追加
+    - 新しいフレームワークに応じて NOISE_PATTERNS を調整
+    - パフォーマンスに応じて MIN/MAX_CHUNK_LENGTH を見直し
     """
     
-    # Core extraction patterns
+    # コア抽出パターン / Core extraction patterns
     STRING_PAYLOAD_PATTERN = re.compile(
-        r'self\.__next_f\.push\(\[1,\s*"((?:\\.|[^"\\])*)"\]\)',
+        r'self\.__next_f\.push\(\[1,\s*"((?:\\.|[^"\\])*)"]\)',
         re.DOTALL
     )
     
-    # Content filtering settings
+    # コンテンツフィルタリング設定 / Content filtering settings
     MIN_CHUNK_LENGTH = 8
     MAX_CHUNK_LENGTH = 10000
     
-    # Content markers (expand for new content types)
+    # コンテンツ識別マーカー（新しいタイプに応じて拡張）/ Content markers (expand for new content types)
     CONTENT_MARKERS = (
-        "# ", "## ", "### ", "#### ",  # Markdown headings
-        "```",                         # Code blocks
-        "Sources:",                    # References
-        "<details", "<summary",        # HTML details
-        "mermaid",                     # Diagrams
-        "graph ", "flowchart ",        # Graph syntax
-        "Note:", "Warning:",           # Admonitions
-        "![", "](http",               # Images and links
+        "# ", "## ", "### ", "#### ",  # Markdown の見出し / headings
+        "```",                         # コードブロック / Code blocks
+        "Sources:",                    # 参考文献 / References
+        "<details", "<summary",        # HTML の詳細表示要素 / details
+        "mermaid",                     # ダイアグラム / Diagrams
+        "graph ", "flowchart ",        # グラフ記法 / Graph syntax
+        "Note:", "Warning:",           # 注記・警告 / Admonitions
+        "![", "](http",               # 画像・リンク / Images and links
     )
     
-    # Noise patterns (expand for new frameworks)
+    # ノイズパターン（新しいフレームワークに合わせて拡張）/ Noise patterns (expand for new frameworks)
     NOISE_PATTERNS = (
         "static/chunks",
         "/_next/static",
@@ -83,20 +88,20 @@ class ExtractionConfig:
         "import {",
     )
     
-    # RSC prefixes (update for Next.js changes)
+    # RSC 接頭辞（Next.js の変更に応じて更新）/ RSC prefixes (update for Next.js changes)
     RSC_PREFIXES = ('["%24",', '["$', '["%24%24",')
     
-    # Token pattern for filtering
+    # フィルタリング用のトークンパターン / Token pattern for filtering
     TOKEN_PATTERN = re.compile(r"[0-9a-z]{1,3}:[A-Za-z0-9]+,")
 
 
 class HTTPConfig:
-    """HTTP communication configuration
+    """HTTP 通信の設定
     
-    6-month maintenance points:
-    - Update DEFAULT_HEADERS for new user agents
-    - Add new ALLOWED_DOMAINS for security
-    - Adjust timeout values for performance
+    保守メモ（半年後の自分へ）:
+    - 新しいユーザーエージェントに合わせて DEFAULT_HEADERS を更新
+    - セキュリティのため ALLOWED_DOMAINS を拡張
+    - パフォーマンスに応じてタイムアウト値を調整
     """
     
     DEFAULT_TIMEOUT = 30.0
@@ -112,7 +117,7 @@ class HTTPConfig:
         "DNT": "1",
     }
     
-    # Security: allowed domains (expand as needed)
+    # セキュリティ: 許可ドメイン（必要に応じて拡張）/ Security: allowed domains (expand as needed)
     ALLOWED_DOMAINS = (
         "deepwiki.com",
         "*.deepwiki.com",
@@ -120,25 +125,25 @@ class HTTPConfig:
 
 
 # ============================================================================
-# UTILITY FUNCTIONS
+# ユーティリティ関数 / UTILITY FUNCTIONS
 # ============================================================================
 def sanitize_filename(name: str) -> str:
-    """Sanitize a string to be used as a filename.
-    
-    Args:
-        name: The string to sanitize
-        
-    Returns:
-        A sanitized string suitable for use as a filename
+    """ファイル名として使用可能な文字列へ正規化する。
+
+    引数:
+        name: 正規化対象の文字列
+
+    戻り値:
+        ファイル名として安全に使用できる文字列
     """
-    # Replace spaces with underscores
+    # スペースをアンダースコアへ置換 / Replace spaces with underscores
     name = name.replace(' ', '_')
     
-    # Remove or replace invalid characters for filenames
-    # This pattern keeps alphanumeric characters, underscores, hyphens, and dots
+    # ファイル名として不適切な文字を削除または置換 / Remove or replace invalid characters for filenames
+    # このパターンは英数字・アンダースコア・ハイフン・ドットのみを許可 / keeps alphanumeric, underscores, hyphens, dots
     name = re.sub(r'[^\w\-_.]', '', name)
     
-    # Ensure the filename is not empty
+    # 空文字列にならないように保証 / Ensure the filename is not empty
     if not name:
         name = "unnamed"
         
@@ -146,64 +151,81 @@ def sanitize_filename(name: str) -> str:
 
 
 def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
-    """Split markdown content by H1 headers, ignoring H1 headers in code blocks.
-    
-    Args:
-        content: The markdown content to split
-        
-    Returns:
-        A list of dictionaries, each containing 'title' and 'content' keys
+    """コードブロック内の H1 を無視して、H1 見出しごとに Markdown を分割する。
+
+    引数:
+        content: 分割対象の Markdown 文字列
+
+    戻り値:
+        'title' と 'content' を持つ辞書のリスト
     """
-    # Split by H1 headers (# Header), but ignore those in code blocks
+    # H1 見出し（# ）で分割（ただしコードブロック内は無視）/ Split by H1 headers but ignore those in code blocks
     sections: List[Dict[str, str]] = []
     lines: List[str] = content.split('\n')
-    
-    # Track if we're inside a code block
+
+    # 現在コードブロック内かどうかを追跡 / Track if inside a code block
     in_code_block: bool = False
     current_section_title: str = "Introduction"
     current_section_content: List[str] = []
-    
+
+    def _append_section_if_needed(title: str, body_lines: List[str]) -> None:
+        # 初期セクション(Introduction)で中身が空の場合はスキップ。それ以外は空でも追加する。
+        body = '\n'.join(body_lines).strip()
+        if title == "Introduction" and body == "":
+            return
+        sections.append({"title": title, "content": body})
+
+    prev_line: str = ""
     for line in lines:
-        # Check for fenced code block markers (allow leading spaces)
+        # 囲みコードブロック記号を検出（先頭の空白は許容）/ Check for fenced code block markers
         stripped = line.strip()
-        if stripped.startswith("```"):
+        is_backtick_fence = stripped != "" and all(ch == '`' for ch in stripped) and len(stripped) >= 2
+        is_tilde_fence = stripped != "" and all(ch == '~' for ch in stripped) and len(stripped) >= 3
+        if is_backtick_fence or is_tilde_fence:
             in_code_block = not in_code_block
             current_section_content.append(line)
+            prev_line = line
             continue
-            
-        # If we're not in a code block, check for H1 headers (exact "# ")
+
+        # セットext形式の H1 を検出（直前行がタイトルで、この行が ==== など）/ Detect Setext H1
+        if (
+            not in_code_block
+            and stripped
+            and all(ch == '=' for ch in stripped)
+            and prev_line.strip()
+        ):
+            # 直前のセクションを保存（Introduction で空ならスキップ）
+            prev_content_lines = current_section_content[:-1]
+            _append_section_if_needed(current_section_title, prev_content_lines)
+            # 新しいセクションを開始（タイトルは直前行）
+            current_section_title = prev_line.strip()
+            current_section_content = []
+            prev_line = line
+            continue
+
+        # コードブロック外なら ATX 形式の H1（厳密に「# 」）を検出 / Check for ATX H1 headers (exact "# ")
         if not in_code_block and line.startswith("# "):
-            # Save the previous section only if it has non-empty content
-            prev_content = '\n'.join(current_section_content).strip()
-            if prev_content:
-                sections.append({
-                    'title': current_section_title,
-                    'content': prev_content
-                })
-            
-            # Start a new section
-            current_section_title = line[2:].strip()  # Remove "# " prefix
+            # 直前のセクションを保存（Introduction で空ならスキップ）
+            _append_section_if_needed(current_section_title, current_section_content)
+            # 新しいセクションを開始 / Start a new section
+            current_section_title = line[2:].strip()  # 先頭の「# 」を除去 / Remove "# " prefix
             current_section_content = []
         else:
             current_section_content.append(line)
-    
-    # Add the last section only if it has non-empty content
-    final_content = '\n'.join(current_section_content).strip()
-    if final_content:
-        sections.append({
-            'title': current_section_title,
-            'content': final_content
-        })
-    
-    # Post-process sections to remove unwanted content
+        prev_line = line
+
+    # 最後のセクションを追加（Introduction で空ならスキップ）/ Add the last section (skip empty initial placeholder)
+    _append_section_if_needed(current_section_title, current_section_content)
+
+    # 不要な行を除去するため事後処理 / Post-process sections to remove unwanted content
     for section in sections:
-        sec_lines = section['content'].split('\n')
+        sec_lines = section['content'].split('\n') if section['content'] else []
         filtered_lines: List[str] = []
         skip_details = False
-        
+
         for l in sec_lines:
             l_strip_lower = l.strip().lower()
-            # Skip details blocks (allow attributes: <details ...>)
+            # details ブロックはスキップ（属性付き <details ...> を許容）/ Skip details blocks
             if l_strip_lower.startswith('<details') and l_strip_lower.endswith('>'):
                 skip_details = True
                 continue
@@ -212,32 +234,32 @@ def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
                 continue
             elif skip_details:
                 continue
-                
-            # Skip lines that look like source file references
+
+            # ソースファイル参照のように見える行をスキップ / Skip lines that look like source file references
             if l_strip_lower.startswith('<summary'):
                 # include only if not the specific "Relevant source files"? Original filtered exact; keep generic.
                 continue
             if l.strip().startswith('- [') and l.strip().endswith('.md)'):
                 continue
-                
+
             filtered_lines.append(l)
-            
+
         section['content'] = '\n'.join(filtered_lines).strip()
-    
+
     return sections
 
 
 # ============================================================================
-# ERROR HANDLING CLASSES
+# エラーハンドリング用クラス / ERROR HANDLING CLASSES
 # ============================================================================
 
 class ExtractorError(Exception):
-    """Base class for extraction errors"""
+    """抽出エラーの基底クラス"""
     pass
 
 
 class HTTPError(ExtractorError):
-    """HTTP communication errors"""
+    """HTTP 通信に関するエラー"""
     def __init__(self, url: str, status_code: int, message: str):
         self.url = url
         self.status_code = status_code
@@ -245,65 +267,65 @@ class HTTPError(ExtractorError):
 
 
 class ContentError(ExtractorError):
-    """Content processing errors"""
+    """コンテンツ処理に関するエラー"""
     pass
 
 
 class ConfigError(ExtractorError):
-    """Configuration errors"""
+    """設定に関するエラー"""
     pass
 
 
 # ============================================================================
-# EXTRACTION STRATEGY PATTERN (6-month maintenance point)
+# 抽出ストラテジーパターン（6カ月保守ポイント）/ EXTRACTION STRATEGY PATTERN (6-month maintenance point)
 # ============================================================================
 
 class ExtractionStrategy(ABC):
-    """Abstract base class for extraction strategies
+    """抽出戦略のための抽象基底クラス
     
-    6-month maintenance guide:
-    1. Create new strategy class inheriting from this
-    2. Implement can_handle() and extract_content() methods
-    3. Register in StrategyManager._register_default_strategies()
-    4. Set appropriate priority level
+    保守メモ（半年後の自分へ）:
+    1. このクラスを継承して新しい戦略クラスを作成
+    2. can_handle() と extract_content() を実装
+    3. StrategyManager._register_default_strategies() に登録
+    4. 適切な優先度を設定
     """
     
     @abstractmethod
     def can_handle(self, html: str, url: str = None) -> bool:
-        """Check if this strategy can handle the given HTML"""
+        """与えられた HTML をこの戦略で処理可能かを判定する"""
         pass
     
     @abstractmethod
     def extract_content(self, html: str, url: str = None) -> str:
-        """Extract content using this strategy"""
+        """この戦略を用いてコンテンツを抽出する"""
         pass
     
     def get_priority(self) -> int:
-        """Return strategy priority (higher = more preferred)"""
+        """戦略の優先度を返す（高いほど優先）"""
         return 50
     
     def get_name(self) -> str:
-        """Return strategy name for identification"""
+        """識別用に戦略名を返す"""
         return self.__class__.__name__
 
 
 class NextJSPushStrategy(ExtractionStrategy):
-    """Current Next.js self.__next_f.push extraction strategy"""
+    """現行の Next.js self.__next_f.push 形式に対する抽出戦略"""
     
     def can_handle(self, html: str, url: str = None) -> bool:
         return "self.__next_f.push" in html
     
     def extract_content(self, html: str, url: str = None) -> str:
-        """Extract content from self.__next_f.push payloads"""
+        """self.__next_f.push のペイロードからコンテンツを抽出する"""
         chunks: List[str] = []
         
         for match in ExtractionConfig.STRING_PAYLOAD_PATTERN.finditer(html):
             raw = match.group(1)
             try:
-                # Decode JSON-style escapes
+                # JSON 形式のエスケープをデコード / Decode JSON-style escapes
                 decoded = json.loads(f'"{raw}"')
             except Exception:
-                # Fallback: manual replacement
+                # フォールバック: 手動置換 / Fallback: manual replacement
                 decoded = (
                     raw.replace('\\n', '\n')
                        .replace('\\t', '\t')
@@ -317,7 +339,7 @@ class NextJSPushStrategy(ExtractionStrategy):
             if self._is_content_chunk(decoded):
                 chunks.append(decoded.strip())
         
-        # Coalesce consecutive duplicates
+        # 連続する重複をまとめる / Coalesce consecutive duplicates
         merged: List[str] = []
         for chunk in chunks:
             if not merged or merged[-1] != chunk:
@@ -326,7 +348,7 @@ class NextJSPushStrategy(ExtractionStrategy):
         return "\n\n".join(merged).strip() + "\n" if merged else ""
     
     def _is_content_chunk(self, s: str) -> bool:
-        """Check if string looks like user-facing content"""
+        """ユーザー向けコンテンツらしい文字列かどうかを判定する"""
         if not s:
             return False
             
@@ -363,13 +385,13 @@ class NextJSPushStrategy(ExtractionStrategy):
 
 
 class NextJSDataStrategy(ExtractionStrategy):
-    """__NEXT_DATA__ script tag extraction strategy"""
+    """__NEXT_DATA__ スクリプトタグから抽出する戦略"""
     
     def can_handle(self, html: str, url: str = None) -> bool:
         return "__NEXT_DATA__" in html and "type=\"application/json\"" in html
     
     def extract_content(self, html: str, url: str = None) -> str:
-        """Extract content from __NEXT_DATA__ script tags"""
+        """__NEXT_DATA__ スクリプトタグからコンテンツを抽出する"""
         match = re.search(
             r'<script[^>]*id=["\']__NEXT_DATA__["\'][^>]*>([^<]+)</script>', 
             html, 
@@ -386,7 +408,7 @@ class NextJSDataStrategy(ExtractionStrategy):
             return ""
     
     def _extract_from_next_data(self, data: Dict[str, Any]) -> str:
-        """Extract content from Next.js data structure"""
+        """Next.js のデータ構造からコンテンツを抽出する"""
         try:
             # Try common paths
             props = data.get("props", {})
@@ -412,20 +434,20 @@ class NextJSDataStrategy(ExtractionStrategy):
 
 
 class RSCStreamStrategy(ExtractionStrategy):
-    """React Server Components streaming extraction strategy"""
+    """React Server Components のストリーミング形式に対する抽出戦略"""
     
     def can_handle(self, html: str, url: str = None) -> bool:
         return "_rsc=" in (url or "") or re.search(r'^[0-9]+:', html[:1000], re.MULTILINE)
     
     def extract_content(self, html: str, url: str = None) -> str:
-        """Extract content from RSC stream format"""
+        """RSC ストリーム形式からコンテンツを抽出する"""
         lines = html.split('\n')
         content_lines = []
         
         for line in lines:
-            # RSC stream lines typically start with numbers
+            # RSC のストリーム行は多くの場合、数字で始まる / RSC stream lines typically start with numbers
             if re.match(r'^[0-9]+:', line):
-                # Extract JSON payload if present
+                # JSON ペイロードがあれば抽出 / Extract JSON payload if present
                 try:
                     parts = line.split(':', 1)
                     if len(parts) > 1:
@@ -440,7 +462,7 @@ class RSCStreamStrategy(ExtractionStrategy):
         return "\n\n".join(content_lines) if content_lines else ""
     
     def _is_meaningful_content(self, content: str) -> bool:
-        """Check if content is meaningful (not framework noise)"""
+        """フレームワークのノイズではなく有意なコンテンツかどうかを判定する"""
         if not content or len(content) < ExtractionConfig.MIN_CHUNK_LENGTH:
             return False
         return any(marker in content for marker in ExtractionConfig.CONTENT_MARKERS)
@@ -450,21 +472,21 @@ class RSCStreamStrategy(ExtractionStrategy):
 
 
 class FallbackHTMLStrategy(ExtractionStrategy):
-    """HTML title and meta extraction fallback strategy"""
+    """HTML の title/meta から抽出するフォールバック戦略"""
     
     def can_handle(self, html: str, url: str = None) -> bool:
-        return True  # Always can handle as fallback
+        return True  # フォールバックとして常に処理可能
     
     def extract_content(self, html: str, url: str = None) -> str:
-        """Extract basic content from HTML title and meta tags"""
+        """HTML の title と meta から基本的な内容を抽出する"""
         result = []
         
-        # Extract title
+        # title を抽出 / Extract title
         title_match = re.search(r'<title>([^<]+)</title>', html, re.IGNORECASE)
         if title_match:
             result.append(f"# {title_match.group(1).strip()}")
             
-        # Extract meta description
+        # meta description を抽出 / Extract meta description
         meta_match = re.search(
             r'<meta[^>]*name=["\']description["\'][^>]*content=["\']([^"\'>]*)', 
             html, 
@@ -473,7 +495,7 @@ class FallbackHTMLStrategy(ExtractionStrategy):
         if meta_match:
             result.append(f"\n{meta_match.group(1).strip()}")
             
-        # Extract twitter:description
+        # twitter:description を抽出 / Extract twitter:description
         twitter_match = re.search(
             r'<meta[^>]*name=["\']twitter:description["\'][^>]*content=["\']([^"\'>]*)', 
             html, 
@@ -493,13 +515,13 @@ class FallbackHTMLStrategy(ExtractionStrategy):
 # ============================================================================
 
 class StrategyManager:
-    """Manages extraction strategies with dynamic selection
+    """抽出戦略を動的に選択して管理するクラス。
     
-    6-month maintenance guide:
-    - Add new strategies in _register_default_strategies()
-    - Disable failing strategies using disable_strategy()
-    - Adjust strategy priorities by modifying their get_priority() methods
-    - Monitor strategy success rates with get_statistics()
+    保守メモ（半年後の自分へ）:
+    - 既定戦略の追加: _register_default_strategies() に追記
+    - 失敗する戦略の無効化: disable_strategy()
+    - 優先度調整: 各戦略の get_priority() を変更
+    - 成果の監視: 必要に応じて統計取得を追加
     """
     
     def __init__(self):
@@ -508,9 +530,9 @@ class StrategyManager:
         self._register_default_strategies()
     
     def _register_default_strategies(self):
-        """Register default extraction strategies
+        """既定の抽出戦略を登録する
         
-        6-month maintenance point: Add new strategies here
+        保守メモ（半年後の自分へ）: 新しい戦略はここに追加
         """
         self.add_strategy(NextJSPushStrategy())
         self.add_strategy(NextJSDataStrategy())
@@ -518,23 +540,23 @@ class StrategyManager:
         self.add_strategy(FallbackHTMLStrategy())
     
     def add_strategy(self, strategy: ExtractionStrategy):
-        """Add a new extraction strategy"""
+        """新しい抽出戦略を追加する"""
         self.strategies.append(strategy)
         self.strategies.sort(key=lambda s: s.get_priority(), reverse=True)
     
     def disable_strategy(self, strategy_name: str):
-        """Disable a strategy by name"""
+        """戦略名を指定して無効化する"""
         self.disabled_strategies.add(strategy_name)
     
     def enable_strategy(self, strategy_name: str):
-        """Re-enable a disabled strategy"""
+        """無効化した戦略を再度有効化する"""
         self.disabled_strategies.discard(strategy_name)
     
     def extract_content(self, html: str, url: str = None) -> str:
-        """Extract content using the best available strategy"""
+        """利用可能な最良の戦略でコンテンツを抽出する"""
         strategies = self.strategies
         
-        # Try strategies in priority order
+        # 優先度順に戦略を試す / Try strategies in priority order
         for strategy in strategies:
             name = strategy.get_name()
             
@@ -543,13 +565,13 @@ class StrategyManager:
                 
             if strategy.can_handle(html, url):
                 result = self._try_extract(strategy, html, url)
-                if result.strip():  # Non-empty result
+                if result.strip():  # 非空の結果なら返す / Non-empty result
                     return result
                     
         return "# No suitable extraction strategy found"
     
     def _try_extract(self, strategy: ExtractionStrategy, html: str, url: str = None) -> str:
-        """Try extracting with a strategy and update statistics"""
+        """特定の戦略で抽出を試み、必要に応じて統計やログを更新する"""
         try:
             return strategy.extract_content(html, url)
         except Exception as e:
@@ -558,16 +580,16 @@ class StrategyManager:
 
 
 # ============================================================================
-# CORE CLASSES
+# 中核クラス / CORE CLASSES
 # ============================================================================
 
 class HTTPClient:
-    """HTTP communication handling
+    """HTTP 通信の処理を担当するクラス
     
-    6-month maintenance points:
-    - Add proxy support in __init__
-    - Implement authentication in _create_request()
-    - Add caching in fetch_url()
+    保守メモ（半年後の自分へ）:
+    - __init__ にプロキシ対応を追加
+    - _create_request() に認証対応を実装
+    - fetch_url() にキャッシュ層を追加
     """
     
     def __init__(self, timeout: float = None, headers: Dict[str, str] = None):
@@ -575,7 +597,7 @@ class HTTPClient:
         self.headers = headers or HTTPConfig.DEFAULT_HEADERS.copy()
     
     def fetch_url(self, url: str) -> str:
-        """Fetch HTML content from URL with error handling"""
+        """URL から HTML を取得（エラーハンドリング付き）"""
         if not self._is_valid_url(url):
             raise HTTPError(url, 0, "Invalid URL format")
             
@@ -588,47 +610,61 @@ class HTTPClient:
             raise HTTPError(url, 0, str(e))
     
     def _is_valid_url(self, url: str) -> bool:
-        """Validate URL format and security"""
-        try:
-            parsed = urlparse(url)
-            return parsed.scheme in ("http", "https") and bool(parsed.netloc)
-        except Exception:
-            return False
+        """URL 形式と安全性を検証する"""
+        parsed = urlparse(url)
+        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
     
     def _create_request(self, url: str) -> Request:
-        """Create HTTP request with proper headers"""
+        """適切なヘッダーを付与して HTTP リクエストを作成する"""
         return Request(url, headers=self.headers)
     
     def _process_response(self, response) -> str:
-        """Process HTTP response with encoding detection"""
+        """HTTP 応答を処理し、エンコーディングを考慮してデコードする。
+        
+        ネストを浅く保つため、圧縮解除は小さな関数に分離し、
+        早期リターン（ガード節）で読みやすさを担保する。
+        """
         data = response.read()
-        
-        # Handle compression
-        encoding = (response.headers.get("Content-Encoding") or "").lower().strip()
-        if encoding == "br":
-            try:
-                import brotli
-                data = brotli.decompress(data)
-            except ImportError:
-                # Fallback: retry without compression
-                pass
-        elif encoding in ("gzip", "x-gzip"):
-            import gzip
-            try:
-                data = gzip.decompress(data)
-            except Exception:
-                pass
-        elif encoding == "deflate":
-            import zlib
-            try:
-                data = zlib.decompress(data)
-            except Exception:
+
+        def _decompress(data_bytes: bytes, enc: str) -> bytes:
+            enc = (enc or "").lower().strip()
+            if not enc:
+                return data_bytes
+
+            # br (Brotli)
+            if enc == "br":
                 try:
-                    data = zlib.decompress(data, -zlib.MAX_WBITS)
+                    import brotli
+                    return brotli.decompress(data_bytes)
                 except Exception:
-                    pass
-        
-        # Determine charset
+                    return data_bytes
+
+            # gzip / x-gzip
+            if enc in ("gzip", "x-gzip"):
+                try:
+                    import gzip
+                    return gzip.decompress(data_bytes)
+                except Exception:
+                    return data_bytes
+
+            # deflate (zlib/raw)
+            if enc == "deflate":
+                try:
+                    import zlib
+                    return zlib.decompress(data_bytes)
+                except Exception:
+                    try:
+                        import zlib as _z
+                        return _z.decompress(data_bytes, -_z.MAX_WBITS)
+                    except Exception:
+                        return data_bytes
+
+            return data_bytes
+
+        # 圧縮を処理する / Handle compression
+        data = _decompress(data, response.headers.get("Content-Encoding"))
+
+        # 文字セットを判定する / Determine charset
         charset = response.headers.get_content_charset() or "utf-8"
         try:
             return data.decode(charset, errors="replace")
@@ -637,26 +673,26 @@ class HTTPClient:
 
 
 class OutputFormatter:
-    """Output formatting with multiple format support
+    """複数形式に対応した出力フォーマッタ
     
-    6-month maintenance points:
-    - Add JSON output in format_content()
-    - Add YAML output support
-    - Implement custom templates
+    保守メモ（半年後の自分へ）:
+    - format_content() に JSON 出力を追加
+    - YAML 出力のサポートを検討
+    - カスタムテンプレートへの対応
     """
     
     def __init__(self, format_type: str = "markdown"):
         self.format_type = format_type
     
     def format_content(self, content: str, metadata: Dict[str, Any] = None) -> str:
-        """Format content based on specified type"""
+        """指定された種類に基づいてコンテンツを整形する"""
         if self.format_type == "markdown":
             return self._format_markdown(content, metadata)
         else:
             return content
     
     def _format_markdown(self, content: str, metadata: Dict[str, Any] = None) -> str:
-        """Format as Markdown with optional metadata"""
+        """Markdown として整形（メタデータは任意）"""
         result = []
         
         if metadata:
@@ -670,8 +706,72 @@ class OutputFormatter:
         return "\n".join(result)
 
 
+def save_markdown_to_library(md: str, source_url: str, base_dir: str = ".deepwiki") -> Dict[str, Any]:
+    """Split Markdown by H1 and save as files under .deepwiki/<username>/<library>/.
+    
+    - Also creates/overwrites a library index file: .deepwiki/<username>/<library>.md
+    - Returns a dict with paths and metadata.
+    - Raises ConfigError if source_url does not include /<username>/<library>.
+    
+    Parameters:
+        md: The markdown content extracted from a DeepWiki/Next.js page.
+        source_url: The original URL used for extraction (used to derive save path).
+        base_dir: Base directory for saving outputs (default: ".deepwiki").
+    
+    Note:
+        The source_url is normalized via normalize_deepwiki_url() so that
+        path-like inputs such as "owner/repo" or "/owner/repo" also work.
+        DeepWiki full URLs and non-DeepWiki full URLs are preserved as-is per policy.
+    """
+    if not source_url:
+        raise ConfigError("source_url is required to determine save location")
+    # Normalize according to shared policy (no-op for full deepwiki URLs and non-deepwiki URLs)
+    normalized_url = normalize_deepwiki_url(source_url)
+    try:
+        parsed_url = urlparse(normalized_url)
+    except Exception as e:
+        raise ConfigError(f"Invalid source_url: {e}")
+    path_parts = [p for p in (parsed_url.path or "").split('/') if p]
+    if len(path_parts) < 2:
+        raise ConfigError("source_url must include '/<username>/<library>' path components")
+    username, library_name = path_parts[0], path_parts[1]
+
+    output_dir = os.path.join(base_dir, username, library_name)
+    os.makedirs(output_dir, exist_ok=True)
+
+    sections = split_markdown_by_h1(md)
+    saved_files: List[str] = []
+    for section in sections:
+        title = section["title"]
+        section_content = section["content"]
+        filename = sanitize_filename(title) + ".md"
+        file_path = os.path.join(output_dir, filename)
+        with open(file_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(section_content)
+        saved_files.append(file_path)
+
+    library_file_path = os.path.join(base_dir, username, f"{library_name}.md")
+    with open(library_file_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f"# {library_name} Documentation Index\n\n")
+        f.write("This file contains links to all extracted documents.\n")
+        f.write("Please refer to the files below for detailed information.\n\n")
+        for file_path in saved_files:
+            filename = os.path.basename(file_path)
+            title = filename[:-3].replace('_', ' ')
+            f.write(f"- [{title}]({library_name}/{filename})\n")
+
+    logging.info("Saved %d sections under %s", len(saved_files), output_dir)
+    return {
+        "username": username,
+        "library_name": library_name,
+        "output_dir": output_dir,
+        "saved_files": saved_files,
+        "library_file": library_file_path,
+    }
+
+
 class ContentExtractor:
-    """Main content extraction orchestrator"""
+    """コンテンツ抽出のオーケストレーター。"""
     
     def __init__(self, strategy_manager: StrategyManager = None, 
                  http_client: HTTPClient = None):
@@ -679,95 +779,20 @@ class ContentExtractor:
         self.http_client = http_client or HTTPClient()
     
     def extract_from_url(self, url: str) -> str:
-        """Extract content from URL"""
-        html = self.http_client.fetch_url(url)
-        return self.extract_from_html(html, url)
+        """URL からコンテンツを抽出する。"""
+        normalized = normalize_deepwiki_url(url)
+        html = self.http_client.fetch_url(normalized)
+        return self.extract_from_html(html, normalized)
     
     def extract_from_html(self, html: str, url: str = None) -> str:
-        """Extract content from HTML string"""
+        """HTML 文字列からコンテンツを抽出する。"""
         raw_content = self.strategy_manager.extract_content(html, url)
         metadata = {"extraction_url": url} if url else None
         formatter = OutputFormatter()
         return formatter.format_content(raw_content, metadata)
 
-
 # ============================================================================
-# CLI INTERFACE
-# ============================================================================
-
-class CLIInterface:
-    """Deprecated: CLI is moved to cli.py. This class kept for backward compatibility."""
-    def __init__(self):
-        raise RuntimeError("CLIInterface moved to cli.py; use cli.main() instead")
-
-
-# ============================================================================
-# BACKWARD COMPATIBILITY
-# ============================================================================
-
-def format_html(html: str, indent: int = 2) -> str:
-    """Backward compatibility function (deprecated)"""
-    logging.warning("format_html() is deprecated. Use deepwikimd.py instead.")
-    return "<!-- HTML formatting deprecated. Use deepwikimd.py for content extraction -->"
-
-
-def extract_markdown_from_html(html: str) -> str:
-    """Backward compatibility function for direct extraction"""
-    strategy = NextJSPushStrategy()
-    if strategy.can_handle(html):
-        return strategy.extract_content(html)
-    return FallbackHTMLStrategy().extract_content(html)
-
-
-# ============================================================================
-# COMPATIBILITY CLASSES
-# ============================================================================
-
-class NextJSContentExtractor:
-    """NextJS content extractor class for backward compatibility"""
-    
-    def __init__(self):
-        self.strategy_manager = StrategyManager()
-        self.output_formatter = OutputFormatter()
-        
-    def extract_and_save(self, input_source: str, output_file: str = None) -> bool:
-        """Extract content from input source and save to file"""
-        try:
-            # Determine if input is URL or file
-            if self._is_url(input_source):
-                html = HTTPClient().fetch_url(input_source)
-            else:
-                with open(input_source, 'r', encoding='utf-8') as f:
-                    html = f.read()
-                    
-            # Extract content
-            content = self.strategy_manager.extract_content(html, input_source)
-            formatted_content = self.output_formatter.format_content(content)
-            
-            # Save to file
-            if output_file:
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    f.write(formatted_content)
-                return True
-            else:
-                print(formatted_content)
-                return True
-                
-        except Exception as e:
-            logging.error(f"Content extraction failed: {e}")
-            return False
-            
-    def _is_url(self, s: str) -> bool:
-        """Check if string is a URL"""
-        try:
-            parsed = urlparse(s)
-            return parsed.scheme in ("http", "https") and bool(parsed.netloc)
-        except Exception:
-            return False
-
-
-# ============================================================================
-# MAIN ENTRY POINT
+# メインエントリーポイント / MAIN ENTRY POINT
 # ============================================================================
 
 def main(argv: Optional[List[str]] = None) -> int:

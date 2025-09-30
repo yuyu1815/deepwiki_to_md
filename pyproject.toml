@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepwiki-to-md"
-version = "2.0.0"
+version = "2.0.2"
 description = "Extensible Next.js/DeepWiki content extractor with zero external dependencies"
 readme = "README.md"
 license = {text = "MIT"}
@@ -24,43 +24,34 @@ keywords = [
     "zero-dependency"
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Text Processing :: Markup :: HTML",
-    "Topic :: Text Processing :: Markup :: Markdown",
+"Development Status :: 5 - Production/Stable",
+"Intended Audience :: Developers",
+"License :: OSI Approved :: MIT License",
+"Programming Language :: Python :: 3",
+"Programming Language :: Python :: 3.8",
+"Programming Language :: Python :: 3.9",
+"Programming Language :: Python :: 3.10",
+"Programming Language :: Python :: 3.11",
+"Programming Language :: Python :: 3.12",
+"Programming Language :: Python :: 3.13",
+"Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+"Topic :: Software Development :: Libraries :: Python Modules",
+"Topic :: Text Processing :: Markup :: HTML",
+"Topic :: Text Processing :: Markup :: Markdown",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = []  # Zero external dependencies - pure Python stdlib only
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "isort>=5.12.0",
 ]
-test = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
-]
 docs = [
     "mkdocs>=1.4.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocstrings[python]>=0.20.0",
 ]
 
 [project.urls]
@@ -75,17 +66,13 @@ deepwiki-to-md = "cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["deepwiki_to_md", "cli"]
+py-modules = ["deepwiki_to_md", "cli", "chat", "search_repository"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["deepwiki_to_md*"]
-exclude = ["tests*", "docs*", "examples*", "scripts*"]
 
 # Development tools configuration
 [tool.black]
 line-length = 88
-target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312', 'py313']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -113,7 +100,7 @@ ensure_newline_before_comments = true
 line_length = 88
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -132,13 +119,12 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src.html_formatter",
-    "--cov=src.deepwiki_to_md",
+    "--cov=deepwiki_to_md",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
 ]
-testpaths = ["tests"]
+testpaths = ["test", "tests"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
