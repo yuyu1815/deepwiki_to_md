@@ -1,6 +1,9 @@
 # deepwiki-to-md
 
+
 English README. 日本語はこちら → [README_JP.md](README_JP.md)
+
+
 
 Zero-dependency CLI and Python library to extract Markdown from Next.js/DeepWiki HTML. Includes a small search helper for public repository indexes and an optional chat helper.
 
@@ -124,4 +127,23 @@ async def main() -> None:
 if __name__ == '__main__':
     asyncio.run(main())
 ```
+
+
+Arguments for chat.py:
+- `--url`: URL of the chat interface.
+- `--message`: Message to send.
+- `--selector`: CSS selector for the chat input (default: textarea).
+- `--button`: CSS selector for the submit button (default: button).
+- `--wait`: Time to wait for response in seconds (default: 30).
+- `--debug`: Enable debug mode.
+- `--output`: Output directory (default: ChatResponses).
+- `--deep`: Enable "Deep Research" mode (specific to some interfaces).
+- `--headless`: Run browser in headless mode.
+- `--format`: Output format(s): html, md, yaml, or comma-separated list (default: html).
+
+Note: The chat scraper uses Selenium, which requires a compatible browser installed.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
