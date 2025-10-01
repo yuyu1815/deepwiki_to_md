@@ -79,6 +79,21 @@ indices = result.get("indices", [])
 print("indices:", len(indices))
 ```
 
+- Chat with Devin API (via CLI):
+```bash
+# Positional argument must be a DeepWiki URL
+# JSON output by default
+deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "What is the purpose of this repository?"
+
+# Human-readable output for development logs
+deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "Summarize top features" --devlog
+```
+Options for chat via deepwiki-to-md:
+- `--chat MESSAGE`: Message to send. Requires a DeepWiki URL as the positional input.
+- `--deep-research`: Enable deep research mode for chat.
+- `--config-file PATH`: Path to chat config JSON (default: ./config.json). The file must exist and contain complete settings.
+- `--devlog`: When used with --chat, prints a human-readable response body and reference files.
+
 ## License
 
 MIT License
@@ -110,13 +125,10 @@ import json
 from chat import load_or_create_config, send_chat_message, ChatResult
 
 async def main() -> None:
-    config = load_or_create_config('./config.json')
-    if not config:
-        raise SystemExit('config missing')
+
     result: ChatResult = await send_chat_message(
         wiki_url='https://deepwiki.com/microsoft/vscode',
         message='What is the purpose of this repository?',
-        config=config,
         use_deep_research=False,
     )
 

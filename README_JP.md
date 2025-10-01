@@ -74,6 +74,20 @@ indices = result.get("indices", [])
 print("indices:", len(indices))
 ```
 
+- Chat（CLI）:
+```bash
+# 位置引数には DeepWiki の URL を指定（既定は JSON 出力）
+deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "このリポジトリの目的は？"
+
+# 開発ログ向けの人間可読出力
+deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "主な特徴を要約して" --devlog
+```
+Chat 用オプション（deepwiki-to-md 経由）:
+- `--chat MESSAGE`: 送信するメッセージ。位置引数に DeepWiki の URL が必須。
+- `--deep-research`: Deep Research モードを有効化。
+- `--config-file PATH`: チャット用の設定 JSON のパス（既定: ./config.json）。ファイルは事前に用意し、必要項目を記載してください。
+- `--devlog`: --chat と併用で、応答本文と参照ファイルを人間可読で表示。
+
 ## ライセンス
 
 MIT License

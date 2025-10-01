@@ -5,6 +5,7 @@ import os
 import logging
 import json
 import asyncio
+from urllib.parse import urlparse
 from chat import load_or_create_config, send_chat_message
 
 from deepwiki_to_md import (
@@ -105,20 +106,35 @@ class CLIInterface:
             return 1
 
     def _read_input(self, parsed_args: argparse.Namespace) -> str:
-        """URL・ファイル・標準入力から入力を読み込む
-        仕様:
-        - .html 末尾 または 実在ファイルのパスならローカル HTML として解釈
-        -  それ以外 DeepWiki のライブラリ名 or URL
+        """Read input from URL, file, or stdin with clear guard clauses.
+        Rules:
+        - If no positional input is provided: read from stdin (non-tty) or error if tty.
+        - If input has an http/https scheme: treat as URL.
+        - If input is an existing file: read as local HTML.
+        - Otherwise: treat as DeepWiki path/URL and pass through to extractor.
         """
         inp = getattr(parsed_args, "input", None)
-        # ローカル HTML の場合
-        if inp.lower().endswith(".html") or os.path.exists(inp):
+
+        # No positional input → read from stdin when piped; else error
+        if not inp:
+            if sys.stdin.isatty():
+                self.parser.error("Input is required when not reading from stdin.")
+            html = sys.stdin.read()
+            return self.extractor.extract_from_html(html, "stdin")
+
+        # URL first (avoid misclassifying URLs ending with .html as files)
+        parsed = urlparse(inp)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            return self.extractor.extract_from_url(inp)
+
+        # Existing file path
+        if os.path.isfile(inp):
             with open(inp, "r", encoding="utf-8") as f:
                 html = f.read()
             return self.extractor.extract_from_html(html, inp)
 
-        # ライブラリ指定 orURL に正規化
-        return self.extractor.extract_from_url(parsed_args.input)
+        # Fallback: treat as DeepWiki library path or URL-like string
+        return self.extractor.extract_from_url(inp)
 
 
 
@@ -204,10 +220,10 @@ class CLIInterface:
                 stars_raw = item.get("stargazers_count") or "N/A"
                 idx_id_raw = item.get("id") or "N/A"
 
-                # 変更対象のコードを以下のように修正
-                repo_name = str(repo_name_raw)[:MAX_REPO_NAME_LENGTH]  # 長さを制限
+                # Coerce potentially null fields to strings and slice to maximum lengths
+                repo_name = str(repo_name_raw)[:MAX_REPO_NAME_LENGTH]
                 language = str(language_raw)[:MAX_LANGUAGE_LENGTH]
-                stars = str(stars_raw)[:MAX_STARS_LENGTH]  
+                stars = str(stars_raw)[:MAX_STARS_LENGTH]
                 idx_id = str(idx_id_raw)[:MAX_ID_LENGTH]
 
                 print(f"{repo_name:<30} | {language:<12} | {stars:>7} | {idx_id:<15}")

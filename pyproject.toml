@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepwiki-to-md"
-version = "2.0.2"
+version = "2.0.3"
 description = "Extensible Next.js/DeepWiki content extractor with zero external dependencies"
 readme = "README.md"
 license = {text = "MIT"}
@@ -67,6 +67,11 @@ deepwiki-to-md = "cli:main"
 [tool.setuptools]
 package-dir = {"" = "src"}
 py-modules = ["deepwiki_to_md", "cli", "chat", "search_repository"]
+
+[tool.setuptools.data-files]
+"share/deepwiki_to_md" = [
+    "src/config.json",
+]
 
 
 # Development tools configuration

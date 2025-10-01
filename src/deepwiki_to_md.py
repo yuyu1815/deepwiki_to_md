@@ -225,8 +225,8 @@ def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
 
         for l in sec_lines:
             l_strip_lower = l.strip().lower()
-            # details ブロックはスキップ（属性付き <details ...> を許容）/ Skip details blocks
-            if l_strip_lower.startswith('<details') and l_strip_lower.endswith('>'):
+            # Skip entire <details> blocks regardless of attributes (e.g., <details open>)
+            if l_strip_lower.startswith('<details'):
                 skip_details = True
                 continue
             elif l_strip_lower.startswith('</details'):
@@ -235,9 +235,9 @@ def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
             elif skip_details:
                 continue
 
-            # ソースファイル参照のように見える行をスキップ / Skip lines that look like source file references
+            # Skip <summary> lines that introduce source file references or similar metadata
             if l_strip_lower.startswith('<summary'):
-                # include only if not the specific "Relevant source files"? Original filtered exact; keep generic.
+                # Treat <summary> as non-content metadata; omit from Markdown output.
                 continue
             if l.strip().startswith('- [') and l.strip().endswith('.md)'):
                 continue

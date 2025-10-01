@@ -166,8 +166,6 @@ test_run_*.py
 # Built documentation
 docs/site/
 
-# Log files
-
 # Backup files
 *.bak
 *.backup
@@ -178,3 +176,9 @@ examples/*.output.*
 .qoder/
 .deepwiki/
 request_test
+
+# PyPI configuration file
+.pypirc
+
+# Caches
+.ruff_cache/
