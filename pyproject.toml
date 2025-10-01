@@ -129,7 +129,7 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
 ]
-testpaths = ["test", "tests"]
+testpaths = ["wiki_tests"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",

@@ -10,7 +10,7 @@ clean:
 	rm -rf build dist *.egg-info src/*.egg-info
 
 upload: build
-    twine upload --repository deepwiki_to_md dist/*
+	twine upload --repository deepwiki_to_md dist/*
 
 upload-test: build
 	# Requires TWINE_PASSWORD (TestPyPI token) to be set; username is __token__

@@ -193,11 +193,11 @@ chat ヘルパーの send_chat_message は ChatResult（dict 継承）を返し�
 ```python
 import asyncio
 import json
-from chat import load_or_create_config, send_chat_message, ChatResult
+from chat import load_config, send_chat_message, ChatResult
 
 
 async def main() -> None:
-    config = load_or_create_config('wiki_tests/config.json')
+    config = load_config('wiki_tests/config.json')
     if not config:
         raise SystemExit('config missing')
     result: ChatResult = await send_chat_message(

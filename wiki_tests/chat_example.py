@@ -19,7 +19,7 @@ import asyncio
 import json
 from typing import Any, Dict, Optional
 
-from chat import load_or_create_config, send_chat_message, ChatResult
+from chat import load_config, send_chat_message, ChatResult
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
 
 
 async def run_chat(args: argparse.Namespace) -> ChatResult:
-    config: Optional[Dict[str, Any]] = load_or_create_config(args.config_file)
+    config: Optional[Dict[str, Any]] = load_config(args.config_file)
     if not config:
         raise SystemExit("Config loading failed. Prepare a complete config file first.")
 

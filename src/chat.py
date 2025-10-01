@@ -1,12 +1,12 @@
-"""DeepWiki CLI 用のチャットユーティリティ。
+"""Chat utilities for the DeepWiki CLI.
 
-このモジュールは、CLI に内蔵されていたチャット機能を切り出したものです。提供機能は次のとおりです。
-- save_config: API リクエストに必要な最小限のヘッダーとボディのテンプレートを保存
-- load_or_create_config: 完成済みの設定ファイルを読み込む
-- send_chat_message: Devin API へ非同期でリクエストし、WebSocket でストリーム応答を受信
+This module extracts the chat functionality that used to live in the CLI. It provides:
+- save_config: Save minimal headers and a body template required for API requests.
+- load_config: Load a prepared, complete configuration file.
+- send_chat_message: Send an async request to the Devin API and receive a streaming response via WebSocket.
 
-注意:
-- 本体パッケージをゼロ依存に保つため、'requests' と 'websockets' は send_chat_message 実行時に遅延インポートされます。
+Notes:
+- To keep the core package zero-dependency, 'requests' and 'websockets' are lazily imported at send_chat_message runtime.
 """
 from __future__ import annotations
 
@@ -19,40 +19,28 @@ from deepwiki_to_md import normalize_deepwiki_url
 
 
 def save_config(config_data: Dict[str, Any], config_file: str) -> None:
-    """設定を JSON ファイルに保存する。
+    """Save settings to a JSON file.
 
-    パラメータ
+    Parameters
     ----------
     config_data : Dict[str, Any]
-        設定データ（headers/body_template）
+        Settings data (headers/body_template)
     config_file : str
-        設定 JSON ファイルのパス
+        Path to the config JSON file
     """
     with open(config_file, "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=4, ensure_ascii=False)
     print(f"\nCreated/updated '{config_file}'.")
 
 
-def load_or_create_config(config_file: str) -> Optional[Dict[str, Any]]:
-    """設定ファイルを読み込む（完成済み前提）。
+def load_config(config_file: str) -> Optional[Dict[str, Any]]:
+    """Load a completed config file.
 
-    この関数は設定ファイルが既に完成していることを前提に、単に読み込んで返します。
-    ファイルが存在しない場合や読み込みに失敗した場合は None を返します。
+    - Absolute paths are used as-is.
+    - Relative paths resolve relative to the caller script; if not found, fall back to CWD (backward compatibility).
+    - Returns None on failure.
 
-    パスの解決規則:
-    - 絶対パスの場合: そのまま使用。
-    - 相対パスの場合: この関数の呼び出し元ファイル（ユーザー側スクリプト）からの相対で解決し、
-      それが見つからなければカレントディレクトリからの相対で解決を試みます（後方互換）。
-
-    パラメータ
-    ----------
-    config_file : str
-        設定 JSON ファイルのパス
-
-    戻り値
-    ------
-    Optional[Dict[str, Any]]
-        設定ディクショナリ（失敗時は None）
+    This function only loads an existing, complete config JSON. It does not create files.
     """
     from pathlib import Path
     import inspect
@@ -60,10 +48,10 @@ def load_or_create_config(config_file: str) -> Optional[Dict[str, Any]]:
     original_arg = config_file
     path = Path(config_file)
 
-    # 相対パスなら、呼び出し元ファイルを基準に解決する
+    # If relative path, resolve relative to the caller file
     if not path.is_absolute():
         caller_path: Optional[Path] = None
-        # スタックから chat.py 以外の最初のフレームを探す（不要な try は使わない）
+        # Find the first frame in the stack that is not chat.py (avoid unnecessary try)
         for frame_info in inspect.stack()[1:]:
             fname = Path(frame_info.filename)
             if fname.name != Path(__file__).name:
@@ -75,12 +63,12 @@ def load_or_create_config(config_file: str) -> Optional[Dict[str, Any]]:
             if candidate.exists():
                 path = candidate
             else:
-                # 後方互換: CWD からの相対も試す
+                # Backward compatibility: also try relative to CWD
                 cwd_candidate = (Path.cwd() / path).resolve()
                 if cwd_candidate.exists():
                     path = cwd_candidate
         else:
-            # 呼び出し元が特定できない場合は CWD 基準
+            # If caller cannot be identified, use CWD as base
             path = (Path.cwd() / path).resolve()
     else:
         path = path.resolve()
@@ -99,11 +87,11 @@ def load_or_create_config(config_file: str) -> Optional[Dict[str, Any]]:
 
 
 class ChatResult(dict):
-    """Chat API の結果オブジェクト。
+    """Result object for the Chat API.
 
-    - dict を継承しているため json.dumps でそのままシリアライズ可能
-    - 属性アクセスも提供（result.response_message など）
-    - print(result) で読みやすい要約を表示
+    - Inherits from dict, so it can be serialized directly via json.dumps
+    - Provides attribute-like access (e.g., result.response_message)
+    - print(result) shows a human-readable summary
     """
 
     # 主要キー（型ヒント用）
@@ -219,7 +207,7 @@ class ChatResult(dict):
         return self.get("request_body", {})
 
     def to_dict(self) -> Dict[str, Any]:
-        """辞書として取得（互換目的）。"""
+        """Return as a plain dict (for compatibility)."""
         return dict(self)
 
     def __str__(self) -> str:
@@ -244,27 +232,29 @@ class ChatResult(dict):
 async def send_chat_message(
         wiki_url: str,
         message: str,
-        config: Dict[str, Any],
-        use_deep_research: bool,
+        config: Optional[Dict[str, Any]] = None,
+        use_deep_research: bool = False,
         devlog: bool = False,
 ) -> ChatResult:
-    """Devin API にメッセージを送り、応答をストリームで受け取る。
+    """Send a message to the Devin API and receive a streaming response.
 
-    パラメータ
+    Parameters
     ----------
     wiki_url : str
-        コンテキストとして使用する DeepWiki ページ URL
+        DeepWiki page URL used as context.
     message : str
-        ユーザーのメッセージ
-    config : Dict[str, Any]
-        load_or_create_config で読み込んだ設定
+        User message.
+    config : Optional[Dict[str, Any]]
+        Configuration. When None, this attempts to load 'config.json' located next to this chat.py (i.e., src/config.json).
     use_deep_research : bool
-        Deep Research モードを有効にするかどうか
+        Whether to enable Deep Research mode.
+    devlog : bool
+        When True, print a human-readable sending log.
 
-    戻り値
-    ------
+    Returns
+    -------
     ChatResult
-        応答本文、ステータスコード、参照ファイル/内容を含む結果
+        Result containing response body, status code, and reference files/contents.
     """
     try:
         import requests  # type: ignore
@@ -274,6 +264,15 @@ async def send_chat_message(
         import websockets  # type: ignore
     except ModuleNotFoundError as e:
         raise RuntimeError("'websockets' is required for chat. Install via: pip install websockets") from e
+
+    # If config is None, load src/config.json (= next to this file)
+    if config is None:
+        from pathlib import Path
+        default_path = str((Path(__file__).parent / "config.json").resolve())
+        loaded = load_config(default_path)
+        if not loaded:
+            raise RuntimeError(f"Default config not found or failed to load at '{default_path}'")
+        config = loaded
 
     post_url = "https://api.devin.ai/ada/query"
     ws_base_url = "wss://api.devin.ai/ada/ws/query/"
@@ -385,7 +384,7 @@ async def send_chat_message(
 
 __all__ = [
     "save_config",
-    "load_or_create_config",
+    "load_config",
     "ChatResult",
     "send_chat_message",
 ]

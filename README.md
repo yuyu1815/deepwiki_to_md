@@ -122,10 +122,34 @@ The chat helper (src/chat.py) returns a ChatResult object instead of a plain dic
 ```python
 import asyncio
 import json
-from chat import load_or_create_config, send_chat_message, ChatResult
+from chat import load_config, send_chat_message, ChatResult
 
 async def main() -> None:
+    config = load_config("config.json")
+    if not config:
+        print("Error: config.json not found. Please create it first.")
+        return
 
+    result: ChatResult = await send_chat_message(
+        wiki_url='https://deepwiki.com/microsoft/vscode',
+        message='What is the purpose of this repository?',
+        config=config,
+        use_deep_research=False,
+    )
+
+    print(result)  # human-readable summary via __str__
+    print(result.response_message)  # attribute access
+    print(json.dumps(result, indent=2, ensure_ascii=False))  # still a dict
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+```python
+import asyncio
+import json
+from chat import load_config, send_chat_message, ChatResult
+
+async def main() -> None:
     result: ChatResult = await send_chat_message(
         wiki_url='https://deepwiki.com/microsoft/vscode',
         message='What is the purpose of this repository?',
@@ -139,7 +163,6 @@ async def main() -> None:
 if __name__ == '__main__':
     asyncio.run(main())
 ```
-
 
 Arguments for chat.py:
 - `--url`: URL of the chat interface.
