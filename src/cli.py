@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import sys
 import argparse
 import os
@@ -18,6 +18,56 @@ MAX_REPO_NAME_LENGTH = 29  # Maximum repository name length
 MAX_LANGUAGE_LENGTH = 11  # Maximum language label length
 MAX_STARS_LENGTH = 7  # Maximum stars field length
 MAX_ID_LENGTH = 14  # Maximum ID field length
+
+
+def format_search_results_devlog(indices: List[Dict[str, Any]]) -> str:
+    """Format search results in a human-readable table for --devlog.
+
+    This helper isolates all layout/formatting so _run_search can focus on flow control.
+    It preserves existing column widths and detail lines (Description/Topics/Last modified).
+    """
+    lines: List[str] = []
+
+    # Header
+    lines.append("=" * 80)
+    lines.append(f"{'Repository':<30} | {'Language':<12} | {'Stars':>8} | {'ID':<15}")
+    lines.append("=" * 80)
+
+    # Rows
+    for item in indices:
+        repo_name_raw = item.get("repo_name") or "N/A"
+        language_raw = item.get("language") or "N/A"
+        stars_raw = item.get("stargazers_count") or "N/A"
+        idx_id_raw = item.get("id") or "N/A"
+
+        repo_name = str(repo_name_raw)[:MAX_REPO_NAME_LENGTH]
+        language = str(language_raw)[:MAX_LANGUAGE_LENGTH]
+        stars = str(stars_raw)[:MAX_STARS_LENGTH]
+        idx_id = str(idx_id_raw)[:MAX_ID_LENGTH]
+
+        lines.append(f"{repo_name:<30} | {language:<12} | {stars:>7} | {idx_id:<15}")
+
+        desc = item.get("description")
+        if desc:
+            lines.append(f"  └─ Description: {desc}")
+
+        topics = item.get("topics") or []
+        if topics:
+            topics_list = topics if isinstance(topics, (list, tuple)) else [topics]
+            topics_str = ", ".join(map(str, topics_list))
+            lines.append(f"  └─ Topics: {topics_str}")
+
+        last_modified = item.get("last_modified")
+        if last_modified:
+            lines.append(f"  └─ Last modified: {last_modified}")
+
+        lines.append("")  # separator blank line
+
+    # Footer
+    lines.append("=" * 80)
+    lines.append(f"Total repositories: {len(indices)}")
+
+    return "\n".join(lines)
 
 
 class CLIInterface:
@@ -207,47 +257,8 @@ class CLIInterface:
                 print("No repositories found.")
                 return 0
 
-            # テーブル形式でヘッダーを表示
-            print("=" * 80)
-            print(f"{'Repository':<30} | {'Language':<12} | {'Stars':>8} | {'ID':<15}")
-            print("=" * 80)
-
-            # 各リポジトリの情報をテーブル形式で表示
-            for item in indices:
-                # Robustly coerce potentially null fields to strings before slicing
-                repo_name_raw = item.get("repo_name") or "N/A"
-                language_raw = item.get("language") or "N/A"
-                stars_raw = item.get("stargazers_count") or "N/A"
-                idx_id_raw = item.get("id") or "N/A"
-
-                # Coerce potentially null fields to strings and slice to maximum lengths
-                repo_name = str(repo_name_raw)[:MAX_REPO_NAME_LENGTH]
-                language = str(language_raw)[:MAX_LANGUAGE_LENGTH]
-                stars = str(stars_raw)[:MAX_STARS_LENGTH]
-                idx_id = str(idx_id_raw)[:MAX_ID_LENGTH]
-
-                print(f"{repo_name:<30} | {language:<12} | {stars:>7} | {idx_id:<15}")
-
-                # 詳細情報をインデントして表示
-                desc = item.get("description")
-                if desc:
-                    print(f"  └─ Description: {desc}")
-
-                topics = item.get("topics") or []
-                if topics:
-                    topics_list = topics if isinstance(topics, (list, tuple)) else [topics]
-                    topics_str = ", ".join(map(str, topics_list))
-                    print(f"  └─ Topics: {topics_str}")
-
-                last_modified = item.get("last_modified")
-                if last_modified:
-                    print(f"  └─ Last modified: {last_modified}")
-
-                print()  # 空行で区切り
-
-            # Footer
-            print("=" * 80)
-            print(f"Total repositories: {len(indices)}")
+            output = format_search_results_devlog(indices)
+            print(output)
             return 0
 
         # 既定は JSON を返す

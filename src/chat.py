@@ -37,39 +37,19 @@ def load_config(config_file: str) -> Optional[Dict[str, Any]]:
     """Load a completed config file.
 
     - Absolute paths are used as-is.
-    - Relative paths resolve relative to the caller script; if not found, fall back to CWD (backward compatibility).
+    - Relative paths resolve relative to the current working directory (CWD) only.
     - Returns None on failure.
 
     This function only loads an existing, complete config JSON. It does not create files.
     """
     from pathlib import Path
-    import inspect
 
     original_arg = config_file
     path = Path(config_file)
 
-    # If relative path, resolve relative to the caller file
+    # Resolve path: absolute as-is; relative against CWD
     if not path.is_absolute():
-        caller_path: Optional[Path] = None
-        # Find the first frame in the stack that is not chat.py (avoid unnecessary try)
-        for frame_info in inspect.stack()[1:]:
-            fname = Path(frame_info.filename)
-            if fname.name != Path(__file__).name:
-                caller_path = fname
-                break
-
-        if caller_path is not None:
-            candidate = (caller_path.parent / path).resolve()
-            if candidate.exists():
-                path = candidate
-            else:
-                # Backward compatibility: also try relative to CWD
-                cwd_candidate = (Path.cwd() / path).resolve()
-                if cwd_candidate.exists():
-                    path = cwd_candidate
-        else:
-            # If caller cannot be identified, use CWD as base
-            path = (Path.cwd() / path).resolve()
+        path = (Path.cwd() / path).resolve()
     else:
         path = path.resolve()
 

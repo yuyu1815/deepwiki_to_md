@@ -154,20 +154,19 @@ def sanitize_filename(name: str) -> str:
     return name
 
 
-def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
-    """Split Markdown by H1 headers while ignoring H1s inside code blocks.
+def _parse_sections_state_machine(content: str) -> List[Dict[str, str]]:
+    """Parse Markdown into sections using a simple state machine.
 
-    Args:
-        content: The Markdown string to split.
+    - Splits by H1 (ATX "# ") and Setext ("====") headers.
+    - Ignores headers when inside fenced code blocks (``` or ~~~).
+    - Produces an initial list of sections with raw (unfiltered) content.
+    - Keeps an implicit initial section named "Introduction" and drops it if empty.
 
-    Returns:
-        A list of dicts with 'title' and 'content' keys.
+    This function preserves the legacy behavior of split_markdown_by_h1.
     """
-    # Split by H1 headers but ignore those in code blocks
     sections: List[Dict[str, str]] = []
     lines: List[str] = content.split('\n')
 
-    # Track if inside a code block
     in_code_block: bool = False
     current_section_title: str = "Introduction"
     current_section_content: List[str] = []
@@ -181,7 +180,6 @@ def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
 
     prev_line: str = ""
     for line in lines:
-        # Check for fenced code block markers (leading whitespace allowed)
         stripped = line.strip()
         is_backtick_fence = stripped != "" and all(ch == '`' for ch in stripped) and len(stripped) >= 2
         is_tilde_fence = stripped != "" and all(ch == '~' for ch in stripped) and len(stripped) >= 3
@@ -209,48 +207,73 @@ def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
 
         # Check for ATX H1 headers (exact "# ") outside code blocks
         if not in_code_block and line.startswith("# "):
-            # Save previous section (skip if Introduction is empty)
             _append_section_if_needed(current_section_title, current_section_content)
-            # Start a new section
             current_section_title = line[2:].strip()  # Remove "# " prefix
             current_section_content = []
         else:
             current_section_content.append(line)
         prev_line = line
 
-    # Add the last section (skip empty initial placeholder)
     _append_section_if_needed(current_section_title, current_section_content)
+    return sections
 
-    # Post-process sections to remove unwanted content
+
+def _filter_sections(sections: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Post-process section contents to remove non-content parts.
+
+    Behavior is kept identical to the legacy implementation:
+    - Remove entire <details> blocks (from <details ...> to </details>).
+    - Drop <summary ...> lines.
+    - Drop navigation list items like "- [title](... .md)".
+    - Trim trailing/leading whitespace of each section's content.
+    """
+    result: List[Dict[str, str]] = []
     for section in sections:
-        sec_lines = section['content'].split('\n') if section['content'] else []
+        raw_content = section.get('content', '')
+        sec_lines = raw_content.split('\n') if raw_content else []
         filtered_lines: List[str] = []
         skip_details = False
 
         for l in sec_lines:
             l_strip_lower = l.strip().lower()
-            # Skip entire <details> blocks regardless of attributes (e.g., <details open>)
             if l_strip_lower.startswith('<details'):
                 skip_details = True
                 continue
-            elif l_strip_lower.startswith('</details'):
+            if l_strip_lower.startswith('</details'):
                 skip_details = False
                 continue
-            elif skip_details:
+            if skip_details:
                 continue
 
-            # Skip <summary> lines that introduce source file references or similar metadata
             if l_strip_lower.startswith('<summary'):
-                # Treat <summary> as non-content metadata; omit from Markdown output.
                 continue
             if l.strip().startswith('- [') and l.strip().endswith('.md)'):
                 continue
 
             filtered_lines.append(l)
 
-        section['content'] = '\n'.join(filtered_lines).strip()
+        result.append({
+            'title': section.get('title', ''),
+            'content': '\n'.join(filtered_lines).strip(),
+        })
+    return result
 
-    return sections
+
+def split_markdown_by_h1(content: str) -> List[Dict[str, str]]:
+    """Split Markdown by H1 headers while ignoring H1s inside code blocks.
+
+    This is a thin wrapper that delegates to two focused helpers:
+    1) _parse_sections_state_machine: builds raw sections.
+    2) _filter_sections: removes non-content lines/blocks.
+
+    Args:
+        content: The Markdown string to split.
+
+    Returns:
+        A list of dicts with 'title' and 'content' keys.
+    """
+    sections = _parse_sections_state_machine(content)
+    return _filter_sections(sections)
 
 
 # ============================================================================
@@ -352,23 +375,7 @@ class NextJSPushStrategy(ExtractionStrategy):
         return "\n\n".join(merged).strip() + "\n" if merged else ""
     
     def _is_content_chunk(self, s: str) -> bool:
-        def _is_content_chunk(self, s: str) -> bool:
-            """Determine if a string appears to be user-facing content.
-        
-            This method uses various heuristics to filter out framework noise and
-            identify meaningful content chunks from Next.js push payloads.
-        
-            Args:
-                s: The string to evaluate.
-        
-            Returns:
-                bool: True if the string appears to be user-facing content, False if it
-                      appears to be framework noise.
-            """
-            if not s:
-                return False
-            return False
-            
+        """Determine if a chunk of text is meaningful rather than framework noise"""
         t = s.strip()
         
         # Too short
