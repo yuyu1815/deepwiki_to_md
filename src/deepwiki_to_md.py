@@ -631,13 +631,6 @@ class HTTPClient:
             if not enc:
                 return data_bytes
 
-            # br (Brotli)
-            if enc == "br":
-                try:
-                    import brotli
-                    return brotli.decompress(data_bytes)
-                except Exception:
-                    return data_bytes
 
             # gzip / x-gzip
             if enc in ("gzip", "x-gzip"):
