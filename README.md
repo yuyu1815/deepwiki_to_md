@@ -26,7 +26,7 @@ echo "<html>...</html>" | deepwiki-to-md
 ```
 ```python
 # Python API
-from deepwiki_to_md import ContentExtractor
+from deepwiki import ContentExtractor
 
 html = """
 <!doctype html>
@@ -46,7 +46,7 @@ deepwiki-to-md https://deepwiki.com/microsoft/vscode/some-page --path ./.deepwik
 ```
 ```python
 # Python API (same behavior as the CLI)
-from deepwiki_to_md import ContentExtractor, save_markdown_to_library
+from deepwiki import ContentExtractor, save_markdown_to_library
 
 url = "https://deepwiki.com/microsoft/vscode/some-page"
 base_dir = "./.deepwiki"  # equivalent to --path (optional)

@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 from typing import Dict, Any
 
-from deepwiki_to_md import ContentExtractor, save_markdown_to_library
+from deepwiki import ContentExtractor, save_markdown_to_library
 
 
 def parse_args() -> argparse.Namespace:

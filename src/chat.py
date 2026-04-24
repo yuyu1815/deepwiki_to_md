@@ -15,7 +15,7 @@ import json
 import uuid
 import logging
 from urllib.parse import urlparse
-from deepwiki_to_md import normalize_deepwiki_url
+from deepwiki import normalize_deepwiki_url
 
 
 def save_config(config_data: Dict[str, Any], config_file: str) -> None:

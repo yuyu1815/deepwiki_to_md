@@ -39,7 +39,7 @@ classifiers = [
 "Topic :: Text Processing :: Markup :: HTML",
 "Topic :: Text Processing :: Markup :: Markdown",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.8.1"
 dependencies = []  # Zero external dependencies - pure Python stdlib only
 
 [project.optional-dependencies]
@@ -66,7 +66,8 @@ deepwiki-to-md = "cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["deepwiki_to_md", "cli", "chat", "search_repository"]
+packages = ["deepwiki", "deepwiki.core", "deepwiki.parsing", "deepwiki.extraction", "deepwiki.output"]
+py-modules = ["cli", "chat", "search_repository"]
 
 [tool.setuptools.data-files]
 "share/deepwiki_to_md" = [
@@ -124,12 +125,12 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=deepwiki_to_md",
+    "--cov=deepwiki",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
 ]
-testpaths = ["wiki_tests"]
+testpaths = ["tests"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",

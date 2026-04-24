@@ -30,7 +30,7 @@
   - 定数: `API_URL`
   - インポートは以下の2通りが可能です。
     - `from search_repository import search_repositories, API_URL`
-    - `from deepwiki_to_md import search_repositories, API_URL`（re-export）
+    - `from deepwiki import search_repositories, API_URL`（re-export）
 
 ---
 
@@ -38,7 +38,7 @@
 
 ### 3.1 HTML 文字列から抽出
 ```python
-from deepwiki_to_md import ContentExtractor
+from deepwiki import ContentExtractor
 
 html = """
 <!doctype html>
@@ -52,7 +52,7 @@ print(md)
 
 ### 3.2 URL から抽出
 ```python
-from deepwiki_to_md import ContentExtractor
+from deepwiki import ContentExtractor
 
 url = "https://deepwiki.com/microsoft/vscode"
 #url = "/microsoft/vscode" or "microsoft/vscode"
@@ -74,7 +74,7 @@ deepwiki-to-md https://deepwiki.com/microsoft/vscode/some-page --path ./.deepwik
 Python 例:
 
 ```python
-from deepwiki_to_md import ContentExtractor, save_markdown_to_library
+from deepwiki import ContentExtractor, save_markdown_to_library
 
 url = "https://deepwiki.com/microsoft/vscode"
 # url = "/microsoft/vscode" or "microsoft/vscode"
@@ -103,7 +103,7 @@ print("library index:", result["library_file"])  # .deepwiki/<username>/<library
 
 ```python
 # どちらの import でも動作します。
-from deepwiki_to_md import search_repositories, API_URL
+from deepwiki import search_repositories, API_URL
 # from search_repository import search_repositories, API_URL
 
 print(API_URL)  # => https://api.devin.ai/ada/list_public_indexes

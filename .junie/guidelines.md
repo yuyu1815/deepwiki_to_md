@@ -86,9 +86,9 @@ This section has been moved to a dedicated document for clarity and maintenance:
   - Avoid clever tricks; prefer explicit, boring code.
 
 - Affected modules (typical hotspots)
-  - src/chat.py: WebSocket message handling → use small handlers and guard clauses.
-  - src/deepwiki_to_md.py: Strategy selection and HTTP response processing → keep branches flat.
-  - src/cli.py: Keep I/O paths separate; return early for stdout vs file output.
+  - src/deepwiki/chat.py: WebSocket message handling → use small handlers and guard clauses.
+  - src/deepwiki/extractor.py: Strategy selection and HTTP response processing → keep branches flat.
+  - src/deepwiki/cli.py: Keep I/O paths separate; return early for stdout vs file output.
 
 - Process requirement (確認の慣行)
   - Before changing files, ask the user which files are affected and why (impact reasoning). When possible, ask in Japanese for confirmation.

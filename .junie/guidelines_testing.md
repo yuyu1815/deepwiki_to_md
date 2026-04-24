@@ -16,12 +16,12 @@
     3) Or create a tests/ directory and place tests there (recommended for consistency).
 
 - Import resolution
-  - This repository uses the "src" layout. To import deepwiki_to_md, cli, chat in tests:
+  - This repository uses the "src" layout. To import deepwiki package modules (cli, chat, etc.) in tests:
     - Export PYTHONPATH=src, or
     - Install the package in editable mode (pip install -e .).
 
 - Coverage caveat
-  - [tool.pytest.ini_options].addopts includes --cov=src.html_formatter and --cov=src.deepwiki_to_md.
+  - [tool.pytest.ini_options].addopts includes --cov=src.html_formatter and --cov=src.deepwiki.
   - src/html_formatter.py does not exist, which triggers a CoverageWarning and can break report generation in strict setups.
   - Options (documentation only; no repo change unless requested):
     - Remove or replace --cov=src.html_formatter, and/or
@@ -29,8 +29,8 @@
 
 - Example smoke test run (manual validation flow)
   - Create a temporary tests/test_smoke.py that:
-    - Verifies import of deepwiki_to_md
-    - Asserts cli.main(["--help"]) exits with SystemExit(0) and the help text contains “Extract Markdown”
+    - Verifies import of deepwiki package (e.g., `from deepwiki import cli`)
+    - Asserts cli.main([“--help”]) exits with SystemExit(0) and the help text contains “Extract Markdown”
   - Run: PYTHONPATH=src pytest -q
   - Expected: 2 passed in ~0.04s
 

@@ -8,7 +8,7 @@ import asyncio
 from urllib.parse import urlparse
 from chat import load_config, send_chat_message
 
-from deepwiki_to_md import (
+from deepwiki import (
     ContentExtractor,
     save_markdown_to_library,
 )

@@ -16,20 +16,20 @@
 
 - インストール（開発）
   - ソースを import 可能にするには以下のいずれかを推奨。
-    - 一時的に PYTHONPATH に src を通す: PYTHONPATH=src python -c "import deepwiki_to_md; print(deepwiki_to_md.__name__)"
+    - 一時的に PYTHONPATH に src を通す: PYTHONPATH=src python -c "from deepwiki import cli; print(cli.__name__)"
     - or editable install: python -m pip install -e .[dev]
   - CLI エントリポイント:
     - deepwiki-to-md = "cli:main"（pyproject.toml の [project.scripts]）
     - ローカルから直接呼び出す例: python -m cli input.html
 
 - 実行時ディレクトリ/出力
-  - URL入力時は、.deepwiki/<username>/<library>/<section>.md に分割保存し、.deepwiki/<username>/<library>.md にインデックスを生成（src/cli.py）。
+  - URL入力時は、.deepwiki/<username>/<library>/<section>.md に分割保存し、.deepwiki/<username>/<library>.md にインデックスを生成（src/deepwiki/cli.py）。
   - ローカル HTML 入力時 or stdin 入力時は標準出力へ Markdown を出力（ファイル保存しない）。
 
 - Chat 機能（Devin API 連携）
   - コマンド例:
     - deepwiki-to-md chat --url https://deepwiki.com/microsoft/WSL --message "Explain WSLg Wayland and RDP" --deep-research --config-file config.json
-  - 設定ファイル生成ロジック（src/chat.py: load_or_create_config）
+  - 設定ファイル生成ロジック（src/deepwiki/chat.py: load_or_create_config）
     - 指定パスの JSON が存在しなければ、カレントにある deepResearch or test という名前の XML ログから最小限のヘッダ/テンプレートを自動抽出し config.json を作成。
     - 抽出できないときは失敗するため、最初の実行時は必ず該当ログファイルを用意すること。
   - 送受信は HTTP POST と WebSocket を利用。ネットワーク依存のため、CI ではモック化が望ましい。
@@ -54,18 +54,18 @@
     3) もしくは tests/ ディレクトリを作り、そこにテストを置く（推奨運用）
 
 - import の解決
-  - 本プロジェクトは src レイアウト。テスト実行時に deepwiki_to_md, cli, chat を import するために、
+  - 本プロジェクトは src レイアウト。テスト実行時に deepwiki パッケージ（cli, chat など）をimportするために、
     - PYTHONPATH=src をセットするか、
     - pip install -e . を行う必要があります。
 
 - カバレッジ設定の注意
-  - [tool.pytest.ini_options] addopts に --cov=src.html_formatter, --cov=src.deepwiki_to_md が含まれます。
+  - [tool.pytest.ini_options] addopts に --cov=src.html_formatter, --cov=src.deepwiki が含まれます。
   - src/html_formatter.py は存在しないため、CoverageWarning が出ます。必要に応じて設定を更新してください。
 
 - 参考: 動作確認した最小テストの実行例
   - 一時的に tests/test_smoke.py を作成し、以下コマンドで成功を確認（実行後ファイルは削除済）。
     - 作成テスト（概要）:
-      - deepwiki_to_md の import ができること
+      - deepwiki パッケージの import ができること（例: `from deepwiki import cli`）
       - cli.main(["--help"]) が SystemExit(0) を返し、ヘルプに "Extract Markdown" が含まれること
     - 実行コマンド:
       - PYTHONPATH=src pytest -q
@@ -77,7 +77,7 @@
   - test/config.json, test/out.json は補助データ。実行環境によっては存在しない/無効な可能性があるため、単体テストには依存しない設計が望ましいです。
 
 - 新しいテストの追加指針
-  - 単体テストでは HTTPClient.fetch_url, StrategyManager.extract_content, split_markdown_by_h1, sanitize_filename 等の純粋ロジックを優先的に検証。
+  - 単体テストでは HTTPClient.fetch_url, StrategyManager.extract_content, split_markdown_by_h1, sanitize_filename 等の純粋ロジックを優先的に検証。deepwiki パッケージ内の各モジュールからインポートして検証する。
   - ネットワークや I/O はモック（unittest.mock / pytest-mock）で代替。例:
     - monkeypatch で HTTPClient.fetch_url をスタブ化
     - tmp_path を使って CLI のファイル出力を検証

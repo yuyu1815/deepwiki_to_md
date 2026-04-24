@@ -182,3 +182,7 @@ request_test
 
 # Caches
 .ruff_cache/
+
+# Test output
+.tmp_output/
+uv.lock

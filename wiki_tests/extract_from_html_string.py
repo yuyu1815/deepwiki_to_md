@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from deepwiki_to_md import ContentExtractor
+from deepwiki import ContentExtractor
 
 
 def read_text(file_path: Path, encoding: str = "utf-8") -> str:
