@@ -1,13 +1,13 @@
-from typing import Optional, List, Dict, Any
-import sys
 import argparse
-import os
-import logging
-import json
 import asyncio
+import json
+import logging
+import os
+import sys
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
-from chat import load_config, send_chat_message
 
+from chat import load_config, send_chat_message
 from deepwiki import (
     ContentExtractor,
     save_markdown_to_library,
@@ -79,7 +79,7 @@ class CLIInterface:
     - Let run() handle errors at a single place and log appropriately.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.parser = self._setup_parser()
         self.extractor = ContentExtractor()
 
@@ -94,7 +94,7 @@ class CLIInterface:
                   %(prog)s https://deepwiki.com/path --path ./output
                   %(prog)s https://deepwiki.com/microsoft/WSL --chat "Explain WSLg Wayland and RDP"
                   %(prog)s https://deepwiki.com/anything --search "vector database"
-            """
+            """,
         )
 
         # 抽出（デフォルト動作）/ Extract (default behavior)
@@ -137,7 +137,7 @@ class CLIInterface:
 
         return parser
 
-    def run(self, args: List[str] = None) -> int:
+    def run(self, args: Optional[List[str]] = None) -> int:
         """Main entry point for the CLI."""
         parsed_args = self.parser.parse_args(args)
 
@@ -186,13 +186,13 @@ class CLIInterface:
         # Fallback: treat as DeepWiki library path or URL-like string
         return self.extractor.extract_from_url(inp)
 
-
-
     def _write_output(self, parsed_args: argparse.Namespace, content: str) -> None:
-        """Write to files or stdout depending on the given arguments."""
-        if not parsed_args.input:
+        """Write local input to stdout and save remote input as files."""
+        inp = getattr(parsed_args, "input", None)
+        if not inp or os.path.isfile(inp):
             sys.stdout.write(content)
             return
+
         base_dir = parsed_args.path or ".deepwiki"
         result = save_markdown_to_library(content, parsed_args.input, base_dir)
         saved_files = result.get("saved_files", [])
@@ -208,7 +208,9 @@ class CLIInterface:
         """Run chat processing (URL comes from positional input, message from --chat)."""
         # URL is required (guard clause)
         if not parsed_args.input:
-            print("Error: When using --chat, provide a DeepWiki URL as the positional argument.")
+            print(
+                "Error: When using --chat, provide a DeepWiki URL as the positional argument."
+            )
             return 1
         if not parsed_args.chat:
             print("Error: Missing --chat <message>.")
@@ -219,13 +221,15 @@ class CLIInterface:
             print("Failed to load configuration. Aborting.")
             return 1
 
-        api_result = asyncio.run(send_chat_message(
-            parsed_args.input,
-            parsed_args.chat,
-            config,
-            bool(parsed_args.deep_research),
-            bool(getattr(parsed_args, "devlog", False)),
-        ))
+        api_result = asyncio.run(
+            send_chat_message(
+                parsed_args.input,
+                parsed_args.chat,
+                config,
+                bool(parsed_args.deep_research),
+                bool(getattr(parsed_args, "devlog", False)),
+            )
+        )
 
         # If --devlog is specified, display response body and reference files after the sending log (output by chat.py)
         if getattr(parsed_args, "devlog", False):
@@ -244,6 +248,7 @@ class CLIInterface:
         # 既定は JSON のみを返す
         print(json.dumps(api_result, indent=4, ensure_ascii=False))
         return 0
+
     # ライブラリ検索
     def _run_search(self, parsed_args: argparse.Namespace) -> int:
         """リポジトリの公開インデックスを検索する。デフォルトは JSON、--devlog で人間可読出力。"""

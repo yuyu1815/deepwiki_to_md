@@ -1,6 +1,5 @@
 import re
-import logging
-from typing import List, Dict
+from typing import Dict, List
 
 
 def _parse_sections_state_machine(content: str) -> List[Dict[str, str]]:
@@ -14,7 +13,7 @@ def _parse_sections_state_machine(content: str) -> List[Dict[str, str]]:
     This function preserves the legacy behavior of split_markdown_by_h1.
     """
     sections: List[Dict[str, str]] = []
-    lines: List[str] = content.split('\n')
+    lines: List[str] = content.split("\n")
 
     in_code_block: bool = False
     current_section_title: str = "Introduction"
@@ -22,7 +21,7 @@ def _parse_sections_state_machine(content: str) -> List[Dict[str, str]]:
 
     def _append_section_if_needed(title: str, body_lines: List[str]) -> None:
         # Skip empty initial section (Introduction), but add others even if empty.
-        body = '\n'.join(body_lines).strip()
+        body = "\n".join(body_lines).strip()
         if title == "Introduction" and body == "":
             return
         sections.append({"title": title, "content": body})
@@ -31,14 +30,14 @@ def _parse_sections_state_machine(content: str) -> List[Dict[str, str]]:
     for line in lines:
         stripped = line.strip()
         if not in_code_block:
-            is_fence_open = bool(re.match(r'^(`{3,}|~{3,})', stripped))
+            is_fence_open = bool(re.match(r"^(`{3,}|~{3,})", stripped))
             if is_fence_open:
                 in_code_block = True
                 current_section_content.append(line)
                 prev_line = line
                 continue
         else:
-            is_fence_close = bool(re.match(r'^(`{3,}|~{3,})\s*$', stripped))
+            is_fence_close = bool(re.match(r"^(`{3,}|~{3,})\s*$", stripped))
             if is_fence_close:
                 in_code_block = False
                 current_section_content.append(line)
@@ -49,7 +48,7 @@ def _parse_sections_state_machine(content: str) -> List[Dict[str, str]]:
         if (
             not in_code_block
             and stripped
-            and all(ch == '=' for ch in stripped)
+            and all(ch == "=" for ch in stripped)
             and prev_line.strip()
         ):
             # Save previous section (skip if Introduction is empty)
@@ -85,33 +84,35 @@ def _filter_sections(sections: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """
     result: List[Dict[str, str]] = []
     for section in sections:
-        raw_content = section.get('content', '')
-        sec_lines = raw_content.split('\n') if raw_content else []
+        raw_content = section.get("content", "")
+        sec_lines = raw_content.split("\n") if raw_content else []
         filtered_lines: List[str] = []
         skip_details = False
 
-        for l in sec_lines:
-            l_strip_lower = l.strip().lower()
-            if l_strip_lower.startswith('<details'):
+        for line in sec_lines:
+            line_strip_lower = line.strip().lower()
+            if line_strip_lower.startswith("<details"):
                 skip_details = True
                 continue
-            if l_strip_lower.startswith('</details'):
+            if line_strip_lower.startswith("</details"):
                 skip_details = False
                 continue
             if skip_details:
                 continue
 
-            if l_strip_lower.startswith('<summary'):
+            if line_strip_lower.startswith("<summary"):
                 continue
-            if l.strip().startswith('- [') and l.strip().endswith('.md)'):
+            if line.strip().startswith("- [") and line.strip().endswith(".md)"):
                 continue
 
-            filtered_lines.append(l)
+            filtered_lines.append(line)
 
-        result.append({
-            'title': section.get('title', ''),
-            'content': '\n'.join(filtered_lines).strip(),
-        })
+        result.append(
+            {
+                "title": section.get("title", ""),
+                "content": "\n".join(filtered_lines).strip(),
+            }
+        )
     return result
 
 

@@ -1,4 +1,5 @@
 import pytest
+
 from deepwiki.extraction.extractor import ContentExtractor
 
 DEEPWIKI_TEST_URL = "https://deepwiki.com/anthropics/anthropic-cookbook"
@@ -16,7 +17,9 @@ def test_extract_from_html_contains_markdown_elements(extractor, fetched_html):
     result = extractor.extract_from_html(fetched_html)
     has_heading = "#" in result
     has_content = len(result) > 100
-    assert has_heading or has_content, "Expected markdown headings or substantial content"
+    assert (
+        has_heading or has_content
+    ), "Expected markdown headings or substantial content"
 
 
 @pytest.mark.network

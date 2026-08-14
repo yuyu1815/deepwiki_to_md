@@ -1,6 +1,7 @@
 import pytest
-from deepwiki.extraction.http_client import HTTPClient
+
 from deepwiki.core.errors import HTTPError
+from deepwiki.extraction.http_client import HTTPClient
 
 DEEPWIKI_TEST_URL = "https://deepwiki.com/anthropics/anthropic-cookbook"
 

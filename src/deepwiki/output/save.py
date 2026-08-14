@@ -1,6 +1,6 @@
-import os
 import logging
-from typing import Optional, List, Dict, Any
+import os
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from deepwiki.core.errors import ConfigError
@@ -8,7 +8,12 @@ from deepwiki.core.utils import normalize_deepwiki_url, sanitize_filename
 from deepwiki.parsing.markdown import split_markdown_by_h1
 
 
-def save_markdown_to_library(md: str, source_url: str, base_dir: str = ".deepwiki", pages: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+def save_markdown_to_library(
+    md: str,
+    source_url: str,
+    base_dir: str = ".deepwiki",
+    pages: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """Split Markdown by H1 and save as files under .deepwiki/<username>/<library>/.
 
     - Also creates/overwrites a library index file: .deepwiki/<username>/<library>.md
@@ -33,9 +38,11 @@ def save_markdown_to_library(md: str, source_url: str, base_dir: str = ".deepwik
         parsed_url = urlparse(normalized_url)
     except Exception as e:
         raise ConfigError(f"Invalid source_url: {e}")
-    path_parts = [p for p in (parsed_url.path or "").split('/') if p]
+    path_parts = [p for p in (parsed_url.path or "").split("/") if p]
     if len(path_parts) < 2:
-        raise ConfigError("source_url must include '/<username>/<library>' path components")
+        raise ConfigError(
+            "source_url must include '/<username>/<library>' path components"
+        )
     username, library_name = path_parts[0], path_parts[1]
 
     output_dir = os.path.join(base_dir, username, library_name)

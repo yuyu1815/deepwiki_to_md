@@ -1,7 +1,7 @@
 import re
 
 
-def normalize_deepwiki_url(raw):
+def normalize_deepwiki_url(raw: str) -> str:
     """Normalize DeepWiki URLs.
 
     If a path-like string is given (e.g., /owner/repo or owner/repo), convert it to
@@ -25,11 +25,11 @@ def sanitize_filename(name: str) -> str:
         A string safe to use as a filename.
     """
     # Replace spaces with underscores
-    name = name.replace(' ', '_')
+    name = name.replace(" ", "_")
 
     # Remove or replace invalid characters for filenames
     # This pattern allows only alphanumeric, underscores, hyphens, dots
-    name = re.sub(r'[^\w\-_.]', '', name)
+    name = re.sub(r"[^\w\-_.]", "", name)
 
     # Ensure the filename is not empty
     if not name:

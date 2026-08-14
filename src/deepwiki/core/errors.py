@@ -1,10 +1,12 @@
 class ExtractorError(Exception):
     """Base class for extraction-related errors."""
+
     pass
 
 
 class HTTPError(ExtractorError):
     """Errors related to HTTP communication."""
+
     def __init__(self, url: str, status_code: int, message: str):
         self.url = url
         self.status_code = status_code
@@ -13,9 +15,11 @@ class HTTPError(ExtractorError):
 
 class ContentError(ExtractorError):
     """Errors related to content processing."""
+
     pass
 
 
 class ConfigError(ExtractorError):
     """Errors related to configuration."""
+
     pass

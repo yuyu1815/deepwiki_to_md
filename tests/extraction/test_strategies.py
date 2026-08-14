@@ -1,10 +1,11 @@
 import pytest
+
 from deepwiki.extraction.strategies import (
     ExtractionStrategy,
-    NextJSPushStrategy,
-    NextJSDataStrategy,
-    RSCStreamStrategy,
     FallbackHTMLStrategy,
+    NextJSDataStrategy,
+    NextJSPushStrategy,
+    RSCStreamStrategy,
     StrategyManager,
 )
 
@@ -44,7 +45,11 @@ def test_at_least_one_strategy_extracts_nonempty_content(fetched_html):
         RSCStreamStrategy(),
         FallbackHTMLStrategy(),
     ]
-    results = [s.extract_content(fetched_html) for s in strategies if s.can_handle(fetched_html)]
+    results = [
+        s.extract_content(fetched_html)
+        for s in strategies
+        if s.can_handle(fetched_html)
+    ]
     assert any(r.strip() for r in results), "No strategy produced non-empty content"
 
 

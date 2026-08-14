@@ -8,13 +8,15 @@ This module extracts the chat functionality that used to live in the CLI. It pro
 Notes:
 - To keep the core package zero-dependency, 'requests' and 'websockets' are lazily imported at send_chat_message runtime.
 """
+
 from __future__ import annotations
 
-from typing import Dict, Any, Optional, List
 import json
-import uuid
 import logging
+import uuid
+from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
+
 from deepwiki import normalize_deepwiki_url
 
 
@@ -55,11 +57,15 @@ def load_config(config_file: str) -> Optional[Dict[str, Any]]:
 
     if not path.exists():
         print(
-            f"Error: Config file '{original_arg}' not found. Resolved path: '{path}'. Please prepare a complete config file.")
+            f"Error: Config file '{original_arg}' not found. Resolved path: '{path}'. Please prepare a complete config file."
+        )
         return None
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            config = json.load(f)
+        if not isinstance(config, dict):
+            raise ValueError("Config must be a JSON object")
+        return cast(Dict[str, Any], config)
     except Exception as e:
         logging.exception("Failed to load config file")
         print(f"Error: Failed to load config file '{path}': {e}")
@@ -74,29 +80,18 @@ class ChatResult(dict):
     - print(result) shows a human-readable summary
     """
 
-    # 主要キー（型ヒント用）
-    sent_message: str
-    response_message: Optional[str]
-    status_code: Any
-    reference_files: List[str]
-    reference_file_contents: Dict[str, str]
-    wiki_url: Optional[str]
-    use_deep_research: Optional[bool]
-    request_headers: Dict[str, Any]
-    request_body: Dict[str, Any]
-
     def __init__(
-            self,
-            *,
-            sent_message: str,
-            response_message: Optional[str] = None,
-            status_code: Any = None,
-            reference_files: Optional[List[str]] = None,
-            reference_file_contents: Optional[Dict[str, str]] = None,
-            wiki_url: Optional[str] = None,
-            use_deep_research: Optional[bool] = None,
-            request_headers: Optional[Dict[str, Any]] = None,
-            request_body: Optional[Dict[str, Any]] = None,
+        self,
+        *,
+        sent_message: str,
+        response_message: Optional[str] = None,
+        status_code: Any = None,
+        reference_files: Optional[List[str]] = None,
+        reference_file_contents: Optional[Dict[str, str]] = None,
+        wiki_url: Optional[str] = None,
+        use_deep_research: Optional[bool] = None,
+        request_headers: Optional[Dict[str, Any]] = None,
+        request_body: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(
             sent_message=sent_message,
@@ -112,7 +107,7 @@ class ChatResult(dict):
 
     # プロパティで属性アクセスを提供
     @property
-    def sent_message(self) -> str:  # type: ignore[override]
+    def sent_message(self) -> str:
         """The message that was sent to the chat API.
 
         Returns
@@ -120,10 +115,10 @@ class ChatResult(dict):
         str
             The original message sent by the user.
         """
-        return self["sent_message"]
+        return cast(str, self["sent_message"])
 
     @property
-    def response_message(self) -> Optional[str]:  # type: ignore[override]
+    def response_message(self) -> Optional[str]:
         """The response message received from the chat API.
 
         Returns
@@ -131,10 +126,10 @@ class ChatResult(dict):
         Optional[str]
             The response message, or None if no response was received or an error occurred.
         """
-        return self["response_message"]
+        return cast(Optional[str], self["response_message"])
 
     @property
-    def status_code(self) -> Any:  # type: ignore[override]
+    def status_code(self) -> Any:
         """The HTTP status code from the API request.
 
         Returns
@@ -145,7 +140,7 @@ class ChatResult(dict):
         return self["status_code"]
 
     @property
-    def reference_files(self) -> List[str]:  # type: ignore[override]
+    def reference_files(self) -> List[str]:
         """List of reference files mentioned in the response.
 
         Returns
@@ -153,10 +148,10 @@ class ChatResult(dict):
         List[str]
             List of file paths or references mentioned in the chat response.
         """
-        return self["reference_files"]
+        return cast(List[str], self["reference_files"])
 
     @property
-    def reference_file_contents(self) -> Dict[str, str]:  # type: ignore[override]
+    def reference_file_contents(self) -> Dict[str, str]:
         """Contents of referenced files.
 
         Returns
@@ -164,27 +159,27 @@ class ChatResult(dict):
         Dict[str, str]
             Dictionary mapping file paths to their contents.
         """
-        return self["reference_file_contents"]
+        return cast(Dict[str, str], self["reference_file_contents"])
 
     @property
-    def wiki_url(self) -> Optional[str]:  # type: ignore[override]
+    def wiki_url(self) -> Optional[str]:
         """The DeepWiki page URL used as context for the request."""
         return self.get("wiki_url")
 
     @property
-    def use_deep_research(self) -> Optional[bool]:  # type: ignore[override]
+    def use_deep_research(self) -> Optional[bool]:
         """Whether Deep Research mode was enabled for this request."""
         return self.get("use_deep_research")
 
     @property
-    def request_headers(self) -> Dict[str, Any]:  # type: ignore[override]
+    def request_headers(self) -> Dict[str, Any]:
         """The HTTP headers that were sent to the API (sanitized as provided)."""
-        return self.get("request_headers", {})
+        return cast(Dict[str, Any], self.get("request_headers", {}))
 
     @property
-    def request_body(self) -> Dict[str, Any]:  # type: ignore[override]
+    def request_body(self) -> Dict[str, Any]:
         """The JSON body that was sent to the API."""
-        return self.get("request_body", {})
+        return cast(Dict[str, Any], self.get("request_body", {}))
 
     def to_dict(self) -> Dict[str, Any]:
         """Return as a plain dict (for compatibility)."""
@@ -210,11 +205,11 @@ class ChatResult(dict):
 
 
 async def send_chat_message(
-        wiki_url: str,
-        message: str,
-        config: Optional[Dict[str, Any]] = None,
-        use_deep_research: bool = False,
-        devlog: bool = False,
+    wiki_url: str,
+    message: str,
+    config: Optional[Dict[str, Any]] = None,
+    use_deep_research: bool = False,
+    devlog: bool = False,
 ) -> ChatResult:
     """Send a message to the Devin API and receive a streaming response.
 
@@ -239,45 +234,54 @@ async def send_chat_message(
     try:
         import requests  # type: ignore
     except ModuleNotFoundError as e:
-        raise RuntimeError("'requests' is required for chat. Install via: pip install requests") from e
+        raise RuntimeError(
+            "'requests' is required for chat. Install via: pip install requests"
+        ) from e
     try:
         import websockets  # type: ignore
     except ModuleNotFoundError as e:
-        raise RuntimeError("'websockets' is required for chat. Install via: pip install websockets") from e
+        raise RuntimeError(
+            "'websockets' is required for chat. Install via: pip install websockets"
+        ) from e
 
     # If config is None, load src/config.json (= next to this file)
     if config is None:
         from pathlib import Path
+
         default_path = str((Path(__file__).parent / "config.json").resolve())
         loaded = load_config(default_path)
         if not loaded:
-            raise RuntimeError(f"Default config not found or failed to load at '{default_path}'")
+            raise RuntimeError(
+                f"Default config not found or failed to load at '{default_path}'"
+            )
         config = loaded
 
     post_url = "https://api.devin.ai/ada/query"
     ws_base_url = "wss://api.devin.ai/ada/ws/query/"
 
-    headers: Dict[str, str] = dict(config.get('headers', {}) or {})
-    headers['Content-Type'] = 'application/json'
+    headers: Dict[str, str] = dict(config.get("headers", {}) or {})
+    headers["Content-Type"] = "application/json"
 
     # Normalize the URL to support owner/repo and /owner/repo inputs
     normalized_wiki_url = normalize_deepwiki_url(wiki_url)
 
     parsed = urlparse(normalized_wiki_url)
-    repo_name = parsed.path.strip('/')
+    repo_name = parsed.path.strip("/")
     context_query = (
         f"<relevant_context>This query was sent from the wiki page: {normalized_wiki_url}</relevant_context>"
         f"{message}"
     )
 
-    data_payload: Dict[str, Any] = dict(config.get('body_template', {}) or {})
+    data_payload: Dict[str, Any] = dict(config.get("body_template", {}) or {})
     new_query_id = f"plugin_{uuid.uuid4()}"
-    data_payload.update({
-        'user_query': context_query,
-        'repo_names': [repo_name] if repo_name else [],
-        'query_id': new_query_id,
-        'use_deep_research': use_deep_research,
-    })
+    data_payload.update(
+        {
+            "user_query": context_query,
+            "repo_names": [repo_name] if repo_name else [],
+            "query_id": new_query_id,
+            "use_deep_research": use_deep_research,
+        }
+    )
 
     result = ChatResult(
         sent_message=message,
@@ -299,8 +303,10 @@ async def send_chat_message(
 
     # HTTP request
     try:
-        response = requests.post(post_url, headers=headers, json=data_payload, timeout=60)
-    except requests.RequestException as e:  # type: ignore[attr-defined]
+        response = requests.post(
+            post_url, headers=headers, json=data_payload, timeout=60
+        )
+    except requests.RequestException as e:
         result["status_code"] = "N/A"
         result["response_message"] = f"HTTP request failed: {e}"
         return result
@@ -319,7 +325,7 @@ async def send_chat_message(
 
     def _handle_ws_message(message_data: Dict[str, Any]) -> bool:
         """Handle a single WebSocket message. Returns True when stream is complete."""
-        nonlocal final_response, reference_files, file_contents
+        nonlocal final_response
         msg_type = message_data.get("type")
 
         if msg_type == "chunk":
@@ -345,7 +351,7 @@ async def send_chat_message(
         return msg_type == "done"
 
     try:
-        async with websockets.connect(ws_url) as websocket:  # type: ignore
+        async with websockets.connect(ws_url) as websocket:
             while True:
                 raw_message = await websocket.recv()
                 message_data = json.loads(raw_message)

@@ -46,7 +46,10 @@ def search_repositories(search_term: str = "Gemini") -> Dict[str, Any]:
                 raise RuntimeError(f"HTTP error! status: {status}")
             data = resp.read()
             try:
-                return json.loads(data.decode("utf-8"))
+                result = json.loads(data.decode("utf-8"))
+                if not isinstance(result, dict):
+                    raise ValueError("API response must be a JSON object")
+                return result
             except Exception as e:  # JSON decode error
                 logging.exception("Failed to parse JSON from repository search API")
                 raise RuntimeError("Invalid JSON from API") from e

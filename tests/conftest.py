@@ -1,12 +1,12 @@
-import sys
 import os
+import sys
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from deepwiki.extraction.extractor import ContentExtractor
 from deepwiki.extraction.http_client import HTTPClient
-
 
 DEEPWIKI_TEST_URL = "https://deepwiki.com/anthropics/anthropic-cookbook"
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

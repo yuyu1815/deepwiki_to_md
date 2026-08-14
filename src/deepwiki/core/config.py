@@ -12,8 +12,7 @@ class ExtractionConfig:
 
     # Core extraction patterns
     STRING_PAYLOAD_PATTERN = re.compile(
-        r'self\.__next_f\.push\(\[1,\s*"((?:\\.|[^"\\])*)"]\)',
-        re.DOTALL
+        r'self\.__next_f\.push\(\[1,\s*"((?:\\.|[^"\\])*)"]\)', re.DOTALL
     )
 
     # Content filtering settings
@@ -22,14 +21,21 @@ class ExtractionConfig:
 
     # Content markers (expand for new content types)
     CONTENT_MARKERS = (
-        "# ", "## ", "### ", "#### ",  # Markdown headings
-        "```",                         # Code blocks
-        "Sources:",                    # References
-        "<details", "<summary",        # HTML details elements
-        "mermaid",                     # Diagrams
-        "graph ", "flowchart ",        # Graph syntax
-        "Note:", "Warning:",           # Admonitions
-        "![", "](http",               # Images and links
+        "# ",
+        "## ",
+        "### ",
+        "#### ",  # Markdown headings
+        "```",  # Code blocks
+        "Sources:",  # References
+        "<details",
+        "<summary",  # HTML details elements
+        "mermaid",  # Diagrams
+        "graph ",
+        "flowchart ",  # Graph syntax
+        "Note:",
+        "Warning:",  # Admonitions
+        "![",
+        "](http",  # Images and links
     )
 
     # Noise patterns (expand for new frameworks)

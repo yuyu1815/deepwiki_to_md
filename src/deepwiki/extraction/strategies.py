@@ -1,11 +1,10 @@
 import json
-import re
 import logging
+import re
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional, Set
 
 from deepwiki.core.config import ExtractionConfig
-from deepwiki.core.errors import ContentError
 
 
 class ExtractionStrategy(ABC):
@@ -19,12 +18,12 @@ class ExtractionStrategy(ABC):
     """
 
     @abstractmethod
-    def can_handle(self, html: str, url: str = None) -> bool:
+    def can_handle(self, html: str, url: Optional[str] = None) -> bool:
         """Return True if this strategy can handle the given HTML/URL."""
         pass
 
     @abstractmethod
-    def extract_content(self, html: str, url: str = None) -> str:
+    def extract_content(self, html: str, url: Optional[str] = None) -> str:
         """Extract content using this strategy."""
         pass
 
@@ -40,10 +39,10 @@ class ExtractionStrategy(ABC):
 class NextJSPushStrategy(ExtractionStrategy):
     """Extraction strategy for current Next.js self.__next_f.push format."""
 
-    def can_handle(self, html: str, url: str = None) -> bool:
+    def can_handle(self, html: str, url: Optional[str] = None) -> bool:
         return "self.__next_f.push" in html
 
-    def extract_content(self, html: str, url: str = None) -> str:
+    def extract_content(self, html: str, url: Optional[str] = None) -> str:
         """Extract content from self.__next_f.push payloads."""
         chunks: List[str] = []
 
@@ -55,13 +54,13 @@ class NextJSPushStrategy(ExtractionStrategy):
             except Exception:
                 # フォールバック: 手動置換 / Fallback: manual replacement
                 decoded = (
-                    raw.replace('\\n', '\n')
-                       .replace('\\t', '\t')
-                       .replace('\\"', '"')
-                       .replace('\\r', '\r')
-                       .replace('\\u003c', '<')
-                       .replace('\\u003e', '>')
-                       .replace('\\u0026', '&')
+                    raw.replace("\\n", "\n")
+                    .replace("\\t", "\t")
+                    .replace('\\"', '"')
+                    .replace("\\r", "\r")
+                    .replace("\\u003c", "<")
+                    .replace("\\u003e", ">")
+                    .replace("\\u0026", "&")
                 )
 
             if self._is_content_chunk(decoded):
@@ -112,15 +111,15 @@ class NextJSPushStrategy(ExtractionStrategy):
 class NextJSDataStrategy(ExtractionStrategy):
     """Strategy to extract from __NEXT_DATA__ script tags."""
 
-    def can_handle(self, html: str, url: str = None) -> bool:
-        return "__NEXT_DATA__" in html and "type=\"application/json\"" in html
+    def can_handle(self, html: str, url: Optional[str] = None) -> bool:
+        return "__NEXT_DATA__" in html and 'type="application/json"' in html
 
-    def extract_content(self, html: str, url: str = None) -> str:
+    def extract_content(self, html: str, url: Optional[str] = None) -> str:
         """Extract content from the __NEXT_DATA__ script tag."""
         match = re.search(
             r'<script[^>]*id=["\']__NEXT_DATA__["\'][^>]*>([^<]+)</script>',
             html,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
 
         if not match:
@@ -161,20 +160,22 @@ class NextJSDataStrategy(ExtractionStrategy):
 class RSCStreamStrategy(ExtractionStrategy):
     """Strategy for React Server Components streaming format."""
 
-    def can_handle(self, html: str, url: str = None) -> bool:
-        return "_rsc=" in (url or "") or bool(re.search(r'^[0-9]+:', html[:1000], re.MULTILINE))
+    def can_handle(self, html: str, url: Optional[str] = None) -> bool:
+        return "_rsc=" in (url or "") or bool(
+            re.search(r"^[0-9]+:", html[:1000], re.MULTILINE)
+        )
 
-    def extract_content(self, html: str, url: str = None) -> str:
+    def extract_content(self, html: str, url: Optional[str] = None) -> str:
         """Extract content from RSC stream format."""
-        lines = html.split('\n')
+        lines = html.split("\n")
         content_lines = []
 
         for line in lines:
             # RSC stream lines typically start with numbers
-            if re.match(r'^[0-9]+:', line):
+            if re.match(r"^[0-9]+:", line):
                 # Extract JSON payload if present
                 try:
-                    parts = line.split(':', 1)
+                    parts = line.split(":", 1)
                     if len(parts) > 1:
                         payload = parts[1].strip()
                         if payload.startswith('"') and payload.endswith('"'):
@@ -199,15 +200,15 @@ class RSCStreamStrategy(ExtractionStrategy):
 class FallbackHTMLStrategy(ExtractionStrategy):
     """Fallback strategy extracting from HTML title/meta tags."""
 
-    def can_handle(self, html: str, url: str = None) -> bool:
+    def can_handle(self, html: str, url: Optional[str] = None) -> bool:
         return True  # Always processable as fallback
 
-    def extract_content(self, html: str, url: str = None) -> str:
+    def extract_content(self, html: str, url: Optional[str] = None) -> str:
         """Extract basic content from HTML title and meta tags"""
         result = []
 
         # Extract title
-        title_match = re.search(r'<title>([^<]+)</title>', html, re.IGNORECASE)
+        title_match = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
         if title_match:
             result.append(f"# {title_match.group(1).strip()}")
 
@@ -215,7 +216,7 @@ class FallbackHTMLStrategy(ExtractionStrategy):
         meta_match = re.search(
             r'<meta[^>]*name=["\']description["\'][^>]*content=["\']([^"\'>]*)',
             html,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if meta_match:
             result.append(f"\n{meta_match.group(1).strip()}")
@@ -224,7 +225,7 @@ class FallbackHTMLStrategy(ExtractionStrategy):
         twitter_match = re.search(
             r'<meta[^>]*name=["\']twitter:description["\'][^>]*content=["\']([^"\'>]*)',
             html,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if twitter_match and not meta_match:
             result.append(f"\n{twitter_match.group(1).strip()}")
@@ -245,12 +246,12 @@ class StrategyManager:
     - Monitoring results: Add statistics collection as needed
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.strategies: List[ExtractionStrategy] = []
-        self.disabled_strategies: set = set()
+        self.disabled_strategies: Set[str] = set()
         self._register_default_strategies()
 
-    def _register_default_strategies(self):
+    def _register_default_strategies(self) -> None:
         """Register default extraction strategies
 
         Maintenance note (for yourself in 6 months): Add new strategies here
@@ -260,20 +261,20 @@ class StrategyManager:
         self.add_strategy(RSCStreamStrategy())
         self.add_strategy(FallbackHTMLStrategy())
 
-    def add_strategy(self, strategy: ExtractionStrategy):
+    def add_strategy(self, strategy: ExtractionStrategy) -> None:
         """Add a new extraction strategy"""
         self.strategies.append(strategy)
         self.strategies.sort(key=lambda s: s.get_priority(), reverse=True)
 
-    def disable_strategy(self, strategy_name: str):
+    def disable_strategy(self, strategy_name: str) -> None:
         """Disable strategy by name"""
         self.disabled_strategies.add(strategy_name)
 
-    def enable_strategy(self, strategy_name: str):
+    def enable_strategy(self, strategy_name: str) -> None:
         """Re-enable a disabled strategy"""
         self.disabled_strategies.discard(strategy_name)
 
-    def extract_content(self, html: str, url: str = None) -> str:
+    def extract_content(self, html: str, url: Optional[str] = None) -> str:
         """Extract content using the best available strategy"""
         strategies = self.strategies
 
@@ -291,7 +292,9 @@ class StrategyManager:
 
         return "# No suitable extraction strategy found"
 
-    def _try_extract(self, strategy: ExtractionStrategy, html: str, url: str = None) -> str:
+    def _try_extract(
+        self, strategy: ExtractionStrategy, html: str, url: Optional[str] = None
+    ) -> str:
         """Try extraction with specific strategy, update statistics/logs as needed"""
         try:
             return strategy.extract_content(html, url)

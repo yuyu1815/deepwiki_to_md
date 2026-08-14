@@ -1,4 +1,5 @@
 import pytest
+
 from deepwiki.core.utils import normalize_deepwiki_url, sanitize_filename
 
 
@@ -21,7 +22,9 @@ class TestNormalizeDeepwikiUrl:
 
     @pytest.mark.unit
     def test_path_with_leading_slash_converted_to_full_url(self):
-        assert normalize_deepwiki_url("/owner/repo") == "https://deepwiki.com/owner/repo"
+        assert (
+            normalize_deepwiki_url("/owner/repo") == "https://deepwiki.com/owner/repo"
+        )
 
     @pytest.mark.unit
     def test_path_without_slash_converted_to_full_url(self):
@@ -29,7 +32,9 @@ class TestNormalizeDeepwikiUrl:
 
     @pytest.mark.unit
     def test_path_with_trailing_slash_stripped_and_converted(self):
-        assert normalize_deepwiki_url("owner/repo/") == "https://deepwiki.com/owner/repo"
+        assert (
+            normalize_deepwiki_url("owner/repo/") == "https://deepwiki.com/owner/repo"
+        )
 
     @pytest.mark.unit
     def test_plain_text_with_no_slash_returned_as_is(self):
@@ -74,7 +79,7 @@ class TestSanitizeFilename:
 
     @pytest.mark.unit
     def test_unicode_characters_removed(self):
-        result = sanitize_filename("hello\U0001F600world")
+        result = sanitize_filename("hello\U0001f600world")
         assert result == "helloworld"
 
     @pytest.mark.unit

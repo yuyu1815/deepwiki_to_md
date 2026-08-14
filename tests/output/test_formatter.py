@@ -1,4 +1,5 @@
 import pytest
+
 from deepwiki.output.formatter import OutputFormatter
 
 
@@ -13,7 +14,9 @@ def test_format_content_no_metadata_returns_content_only():
 @pytest.mark.unit
 def test_format_content_with_metadata_prepends_yaml_front_matter():
     formatter = OutputFormatter()
-    result = formatter.format_content("Body text.", metadata={"title": "My Doc", "author": "yusei"})
+    result = formatter.format_content(
+        "Body text.", metadata={"title": "My Doc", "author": "yusei"}
+    )
     lines = result.splitlines()
     assert lines[0] == "---"
     assert "title: My Doc" in lines

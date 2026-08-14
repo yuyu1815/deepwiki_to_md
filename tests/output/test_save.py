@@ -1,9 +1,12 @@
 """Tests for save_markdown_to_library - both H1 splitting and structured pages modes."""
+
 import os
+
 import pytest
-from deepwiki.output.save import save_markdown_to_library
+
 from deepwiki.core.errors import ConfigError
 from deepwiki.extraction.extractor import ContentExtractor
+from deepwiki.output.save import save_markdown_to_library
 
 DEEPWIKI_TEST_URL = "https://deepwiki.com/anthropics/anthropic-cookbook"
 OFFLINE_MD = "# Section1\ncontent1\n# Section2\ncontent2"
@@ -111,7 +114,9 @@ class TestSaveLibraryNetwork:
         assert len(result["saved_files"]) >= 1
 
     @pytest.mark.network
-    def test_save_from_real_markdown_index_contains_links(self, tmp_output, extracted_markdown):
+    def test_save_from_real_markdown_index_contains_links(
+        self, tmp_output, extracted_markdown
+    ):
         result = save_markdown_to_library(
             extracted_markdown,
             source_url=DEEPWIKI_TEST_URL,
@@ -269,7 +274,10 @@ class TestSaveWithStructuredPages:
             pages=single,
         )
         assert len(result["saved_files"]) == 1
-        assert os.path.basename(result["saved_files"][0]) == "1-vs-code-codebase-overview.md"
+        assert (
+            os.path.basename(result["saved_files"][0])
+            == "1-vs-code-codebase-overview.md"
+        )
 
 
 @pytest.mark.unit

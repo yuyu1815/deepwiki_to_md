@@ -1,11 +1,9 @@
-import logging
-from typing import Dict
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from deepwiki.core.config import HTTPConfig
-from deepwiki.core.errors import HTTPError, ConfigError
-from deepwiki.core.utils import normalize_deepwiki_url
+from deepwiki.core.errors import HTTPError
 
 
 class HTTPClient:
@@ -17,7 +15,11 @@ class HTTPClient:
     - Add caching layer to fetch_url()
     """
 
-    def __init__(self, timeout: float = None, headers: Dict[str, str] = None):
+    def __init__(
+        self,
+        timeout: Optional[float] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> None:
         self.timeout = timeout or HTTPConfig.DEFAULT_TIMEOUT
         self.headers = headers or HTTPConfig.DEFAULT_HEADERS.copy()
 
@@ -43,7 +45,7 @@ class HTTPClient:
         """Create HTTP request with appropriate headers"""
         return Request(url, headers=self.headers)
 
-    def _process_response(self, response) -> str:
+    def _process_response(self, response: Any) -> str:
         """Process HTTP response and decode considering encoding.
 
         Keep nesting shallow by separating decompression into small functions,
@@ -56,11 +58,11 @@ class HTTPClient:
             if not enc:
                 return data_bytes
 
-
             # gzip / x-gzip
             if enc in ("gzip", "x-gzip"):
                 try:
                     import gzip
+
                     return gzip.decompress(data_bytes)
                 except Exception:
                     return data_bytes
@@ -69,10 +71,12 @@ class HTTPClient:
             if enc == "deflate":
                 try:
                     import zlib
+
                     return zlib.decompress(data_bytes)
                 except Exception:
                     try:
                         import zlib as _z
+
                         return _z.decompress(data_bytes, -_z.MAX_WBITS)
                     except Exception:
                         return data_bytes

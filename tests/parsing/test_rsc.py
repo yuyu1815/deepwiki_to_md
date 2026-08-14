@@ -1,10 +1,10 @@
 """Tests for RSC parsing and structured page extraction."""
-import pytest
+
 from deepwiki.parsing.rsc import (
+    extract_structured_pages,
     parse_rsc_t_chunks,
     parse_wiki_pages,
     resolve_wiki_pages,
-    extract_structured_pages,
 )
 
 
@@ -23,14 +23,14 @@ class TestParseRscTChunks:
 
     def test_chunk_with_newlines(self):
         content = "# Title\n\nBody text"
-        byte_len = format(len(content.encode('utf-8')), 'x')
+        byte_len = format(len(content.encode("utf-8")), "x")
         rsc = f"17:T{byte_len},{content}"
         result = parse_rsc_t_chunks(rsc)
         assert result == {"17": "# Title\n\nBody text"}
 
     def test_chunk_with_markdown(self):
         content = "# VS Code Overview\n\n<details>\n<summary>Sources</summary>\n</details>\n\n## Architecture\n\nSome text here."
-        byte_len = format(len(content.encode('utf-8')), 'x')
+        byte_len = format(len(content.encode("utf-8")), "x")
         rsc = f"17:T{byte_len},{content}"
         result = parse_rsc_t_chunks(rsc)
         assert result["17"] == content
@@ -42,7 +42,7 @@ class TestParseRscTChunks:
 
     def test_large_byte_length(self):
         content = "# Page Title\n\n" + "Lorem ipsum. " * 1000
-        byte_len = format(len(content.encode('utf-8')), 'x')
+        byte_len = format(len(content.encode("utf-8")), "x")
         rsc = f"17:T{byte_len},{content}"
         result = parse_rsc_t_chunks(rsc)
         assert result["17"] == content
@@ -62,7 +62,7 @@ class TestParseRscTChunks:
 
     def test_multibyte_utf8_content(self):
         content = "# 日本語タイトル\n\n本文テキスト"
-        byte_len = format(len(content.encode('utf-8')), 'x')
+        byte_len = format(len(content.encode("utf-8")), "x")
         rsc = f"17:T{byte_len},{content}"
         result = parse_rsc_t_chunks(rsc)
         assert result["17"] == content
@@ -70,8 +70,8 @@ class TestParseRscTChunks:
     def test_consecutive_chunks_boundary_accuracy(self):
         content1 = "Page one content"
         content2 = "Page two content"
-        bl1 = format(len(content1.encode('utf-8')), 'x')
-        bl2 = format(len(content2.encode('utf-8')), 'x')
+        bl1 = format(len(content1.encode("utf-8")), "x")
+        bl2 = format(len(content2.encode("utf-8")), "x")
         rsc = f"17:T{bl1},{content1}18:T{bl2},{content2}"
         result = parse_rsc_t_chunks(rsc)
         assert result["17"] == content1
@@ -82,19 +82,19 @@ class TestParseWikiPages:
     """Tests for parse_wiki_pages() - extracts wiki.pages[] array from RSC text."""
 
     def test_basic_pages_extraction(self):
-        rsc_text = '''5:["$","$L15",null,{"wiki":{"metadata":{"repo_name":"org/repo"},"pages":[{"page_plan":{"id":"1","title":"Overview"},"content":"$17"},{"page_plan":{"id":"1.1","title":"Startup"},"content":"$18"}]}}]'''
+        rsc_text = """5:["$","$L15",null,{"wiki":{"metadata":{"repo_name":"org/repo"},"pages":[{"page_plan":{"id":"1","title":"Overview"},"content":"$17"},{"page_plan":{"id":"1.1","title":"Startup"},"content":"$18"}]}}]"""
         result = parse_wiki_pages(rsc_text)
         assert len(result) == 2
         assert result[0] == {"id": "1", "title": "Overview", "content_ref": "17"}
         assert result[1] == {"id": "1.1", "title": "Startup", "content_ref": "18"}
 
     def test_content_ref_strips_dollar(self):
-        rsc_text = '''5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[{"page_plan":{"id":"1","title":"Test"},"content":"$17"}]}}]'''
+        rsc_text = """5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[{"page_plan":{"id":"1","title":"Test"},"content":"$17"}]}}]"""
         result = parse_wiki_pages(rsc_text)
         assert result[0]["content_ref"] == "17"
 
     def test_empty_pages(self):
-        rsc_text = '''5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[]}}]'''
+        rsc_text = """5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[]}}]"""
         result = parse_wiki_pages(rsc_text)
         assert result == []
 
@@ -104,7 +104,7 @@ class TestParseWikiPages:
         assert result == []
 
     def test_hierarchical_ids(self):
-        rsc_text = '''5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[{"page_plan":{"id":"1","title":"A"},"content":"$17"},{"page_plan":{"id":"1.1","title":"B"},"content":"$18"},{"page_plan":{"id":"1.2","title":"C"},"content":"$19"},{"page_plan":{"id":"2","title":"D"},"content":"$1a"}]}}]'''
+        rsc_text = """5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[{"page_plan":{"id":"1","title":"A"},"content":"$17"},{"page_plan":{"id":"1.1","title":"B"},"content":"$18"},{"page_plan":{"id":"1.2","title":"C"},"content":"$19"},{"page_plan":{"id":"2","title":"D"},"content":"$1a"}]}}]"""
         result = parse_wiki_pages(rsc_text)
         ids = [p["id"] for p in result]
         assert ids == ["1", "1.1", "1.2", "2"]
@@ -170,7 +170,7 @@ class TestResolveWikiPages:
 
 
 def _build_mock_html(rsc_payload: str) -> str:
-    escaped = rsc_payload.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    escaped = rsc_payload.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
     return f'<html><script>self.__next_f.push([1, "{escaped}"])</script></html>'
 
 
@@ -180,12 +180,12 @@ class TestExtractStructuredPages:
     def test_extracts_pages_from_html_with_rsc_data(self):
         content1 = "# Overview\n\nPage one content."
         content2 = "# Startup\n\nPage two content."
-        bl1 = format(len(content1.replace('\\n', '\n').encode('utf-8')), 'x')
-        bl2 = format(len(content2.replace('\\n', '\n').encode('utf-8')), 'x')
+        bl1 = format(len(content1.replace("\\n", "\n").encode("utf-8")), "x")
+        bl2 = format(len(content2.replace("\\n", "\n").encode("utf-8")), "x")
         rsc_data = (
-            f'17:T{bl1},{content1}'
-            f'18:T{bl2},{content2}'
-            '\n'
+            f"17:T{bl1},{content1}"
+            f"18:T{bl2},{content2}"
+            "\n"
             '5:["$","$L15",null,{"wiki":{"metadata":{"repo_name":"org/repo"},"pages":[{"page_plan":{"id":"1","title":"Overview"},"content":"$17"},{"page_plan":{"id":"1.1","title":"Startup"},"content":"$18"}]}}]'
         )
         html = _build_mock_html(rsc_data)
@@ -216,10 +216,10 @@ class TestExtractStructuredPages:
 
     def test_result_has_required_fields(self):
         content = "# Test Page\n\nContent here."
-        bl = format(len(content.replace('\\n', '\n').encode('utf-8')), 'x')
+        bl = format(len(content.replace("\\n", "\n").encode("utf-8")), "x")
         rsc_data = (
-            f'17:T{bl},{content}'
-            '\n'
+            f"17:T{bl},{content}"
+            "\n"
             '5:["$","$L15",null,{"wiki":{"metadata":{},"pages":[{"page_plan":{"id":"1","title":"Test Page"},"content":"$17"}]}}]'
         )
         html = _build_mock_html(rsc_data)

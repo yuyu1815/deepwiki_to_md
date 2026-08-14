@@ -1,5 +1,4 @@
-import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 class OutputFormatter:
@@ -14,14 +13,18 @@ class OutputFormatter:
     def __init__(self, format_type: str = "markdown"):
         self.format_type = format_type
 
-    def format_content(self, content: str, metadata: Dict[str, Any] = None) -> str:
+    def format_content(
+        self, content: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Format content based on specified type"""
         if self.format_type == "markdown":
             return self._format_markdown(content, metadata)
         else:
             return content
 
-    def _format_markdown(self, content: str, metadata: Dict[str, Any] = None) -> str:
+    def _format_markdown(
+        self, content: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Format as Markdown (metadata is optional)"""
         result = []
 
