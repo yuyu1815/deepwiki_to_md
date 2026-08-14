@@ -12,6 +12,7 @@ How to run:
 Requirements:
   pip install requests websockets
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,7 +20,7 @@ import asyncio
 import json
 from typing import Any, Dict, Optional
 
-from chat import load_config, send_chat_message, ChatResult
+from chat import ChatResult, load_config, send_chat_message
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,9 +30,17 @@ def parse_args() -> argparse.Namespace:
         default="https://deepwiki.com/microsoft/vscode",
         help="DeepWiki page URL (context). Default: https://deepwiki.com/microsoft/vscode",
     )
-    p.add_argument("--message", default="What is the purpose of this repository?", help="Your question/message to send")
-    p.add_argument("--config-file", default="./config.json", help="Path to prepared config JSON")
-    p.add_argument("--deep-research", action="store_true", help="Enable Deep Research mode")
+    p.add_argument(
+        "--message",
+        default="What is the purpose of this repository?",
+        help="Your question/message to send",
+    )
+    p.add_argument(
+        "--config-file", default="./config.json", help="Path to prepared config JSON"
+    )
+    p.add_argument(
+        "--deep-research", action="store_true", help="Enable Deep Research mode"
+    )
     return p.parse_args()
 
 
@@ -79,8 +88,8 @@ def main() -> None:
 
     # If you still want the raw JSON for debugging/interop, it remains available
     # because ChatResult inherits from dict.
-    #print("\n--- Final result (JSON for debugging) ---")
-    #print(json.dumps(result, indent=2, ensure_ascii=False))
+    # print("\n--- Final result (JSON for debugging) ---")
+    # print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":

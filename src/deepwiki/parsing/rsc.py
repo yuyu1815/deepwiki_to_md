@@ -155,4 +155,6 @@ def extract_structured_pages(html: str) -> Optional[List[Dict[str, Any]]]:
         return None
 
     resolved = resolve_wiki_pages(wiki_pages, t_chunks)
-    return resolved if resolved else None
+    if len(resolved) != len(wiki_pages):
+        return None
+    return resolved or None

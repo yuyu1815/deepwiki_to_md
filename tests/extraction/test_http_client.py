@@ -1,3 +1,5 @@
+from urllib.error import HTTPError as UrllibHTTPError
+
 import pytest
 
 from deepwiki.core.errors import HTTPError
@@ -33,6 +35,16 @@ def test_invalid_empty_string(client):
 
 def test_invalid_no_netloc(client):
     assert client._is_valid_url("https://") is False
+
+
+def test_fetch_url_preserves_http_status(client, monkeypatch):
+    def raise_http_error(request, timeout):
+        raise UrllibHTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr("deepwiki.extraction.http_client.urlopen", raise_http_error)
+    with pytest.raises(HTTPError) as error:
+        client.fetch_url("https://deepwiki.com/missing/repo")
+    assert error.value.status_code == 404
 
 
 @pytest.mark.network

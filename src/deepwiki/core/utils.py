@@ -1,38 +1,38 @@
 import re
+from typing import Set
+
+_WINDOWS_RESERVED_NAMES: Set[str] = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+_MAX_FILENAME_LENGTH = 120
 
 
 def normalize_deepwiki_url(raw: str) -> str:
-    """Normalize DeepWiki URLs.
-
-    If a path-like string is given (e.g., /owner/repo or owner/repo), convert it to
-    https://deepwiki.com/<owner>/<repo>. Otherwise, return the input as-is.
-    """
+    """Convert an owner/repository path to a DeepWiki URL."""
     if raw.startswith("http://") or raw.startswith("https://"):
         return raw
-    # Convert path-like strings (/owner/repo or owner/repo) into full URLs
     if raw.startswith("/") or ("/" in raw and " " not in raw):
         return f"https://deepwiki.com/{raw.strip('/')}"
     return raw
 
 
-def sanitize_filename(name: str) -> str:
-    """Normalize a string to be safe for use as a filename.
-
-    Args:
-        name: The input string to normalize.
-
-    Returns:
-        A string safe to use as a filename.
-    """
-    # Replace spaces with underscores
+def sanitize_filename(name: str, max_length: int = _MAX_FILENAME_LENGTH) -> str:
+    """Return a portable filename component without path separators."""
+    name = name.rstrip(". ")
     name = name.replace(" ", "_")
-
-    # Remove or replace invalid characters for filenames
-    # This pattern allows only alphanumeric, underscores, hyphens, dots
     name = re.sub(r"[^\w\-_.]", "", name)
 
-    # Ensure the filename is not empty
     if not name:
         name = "unnamed"
 
-    return name
+    stem = name.split(".", 1)[0].upper()
+    if stem in _WINDOWS_RESERVED_NAMES:
+        name = f"_{name}"
+
+    name = name[:max_length].rstrip(". ")
+    return name or "unnamed"

@@ -30,7 +30,10 @@ def test_local_html_file_does_not_save_when_path_is_given(tmp_path, capsys):
 
 def test_url_input_is_saved(tmp_path, capsys):
     cli = CLIInterface()
-    cli.extractor.extract_from_url = lambda url: "# Overview\ncontent"
+    cli.extractor.extract_document_from_url = lambda url: (
+        "# Overview\ncontent",
+        None,
+    )
 
     exit_code = cli.run(
         ["https://deepwiki.com/example/project", "--path", str(tmp_path)]

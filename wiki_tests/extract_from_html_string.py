@@ -7,6 +7,7 @@ How to run:
 
 This script reads wiki_tests/test_deepwiki.html and prints extracted Markdown.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

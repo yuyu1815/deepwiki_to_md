@@ -9,10 +9,11 @@ Notes:
 - This example performs real network access.
 - Files are saved only for URL inputs (project policy). Local/STDIN inputs should print to stdout instead.
 """
+
 from __future__ import annotations
 
 import argparse
-from typing import Dict, Any
+from typing import Any, Dict
 
 from deepwiki import ContentExtractor, save_markdown_to_library
 
@@ -24,7 +25,9 @@ def parse_args() -> argparse.Namespace:
         default="https://deepwiki.com/microsoft/vscode",
         help="DeepWiki page URL (default: https://deepwiki.com/microsoft/vscode)",
     )
-    p.add_argument("--path", default=".deepwiki", help="Base output directory (default: .deepwiki)")
+    p.add_argument(
+        "--path", default=".deepwiki", help="Base output directory (default: .deepwiki)"
+    )
     return p.parse_args()
 
 

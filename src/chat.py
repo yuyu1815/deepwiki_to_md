@@ -1,84 +1,51 @@
-"""Chat utilities for the DeepWiki CLI.
-
-This module extracts the chat functionality that used to live in the CLI. It provides:
-- save_config: Save minimal headers and a body template required for API requests.
-- load_config: Load a prepared, complete configuration file.
-- send_chat_message: Send an async request to the Devin API and receive a streaming response via WebSocket.
-
-Notes:
-- To keep the core package zero-dependency, 'requests' and 'websockets' are lazily imported at send_chat_message runtime.
-"""
+"""Optional Devin API chat support for the command-line interface."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
 from deepwiki import normalize_deepwiki_url
 
+_SENSITIVE_HEADERS = {"authorization", "cookie", "proxy-authorization", "x-api-key"}
+
 
 def save_config(config_data: Dict[str, Any], config_file: str) -> None:
-    """Save settings to a JSON file.
-
-    Parameters
-    ----------
-    config_data : Dict[str, Any]
-        Settings data (headers/body_template)
-    config_file : str
-        Path to the config JSON file
-    """
-    with open(config_file, "w", encoding="utf-8") as f:
-        json.dump(config_data, f, indent=4, ensure_ascii=False)
-    print(f"\nCreated/updated '{config_file}'.")
+    """Save chat settings as JSON."""
+    with open(config_file, "w", encoding="utf-8") as file:
+        json.dump(config_data, file, indent=4, ensure_ascii=False)
 
 
 def load_config(config_file: str) -> Optional[Dict[str, Any]]:
-    """Load a completed config file.
-
-    - Absolute paths are used as-is.
-    - Relative paths resolve relative to the current working directory (CWD) only.
-    - Returns None on failure.
-
-    This function only loads an existing, complete config JSON. It does not create files.
-    """
-    from pathlib import Path
-
-    original_arg = config_file
-    path = Path(config_file)
-
-    # Resolve path: absolute as-is; relative against CWD
+    """Load an existing chat configuration file."""
+    path = Path(config_file).expanduser()
     if not path.is_absolute():
-        path = (Path.cwd() / path).resolve()
-    else:
-        path = path.resolve()
-
-    if not path.exists():
-        print(
-            f"Error: Config file '{original_arg}' not found. Resolved path: '{path}'. Please prepare a complete config file."
-        )
-        return None
+        path = Path.cwd() / path
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            config = json.load(f)
+        with path.resolve().open("r", encoding="utf-8") as file:
+            config = json.load(file)
         if not isinstance(config, dict):
             raise ValueError("Config must be a JSON object")
         return cast(Dict[str, Any], config)
-    except Exception as e:
-        logging.exception("Failed to load config file")
-        print(f"Error: Failed to load config file '{path}': {e}")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        logging.error("Failed to load config file %s: %s", path, exc)
         return None
 
 
-class ChatResult(dict):
-    """Result object for the Chat API.
+def _sanitized_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    return {
+        key: "<redacted>" if key.lower() in _SENSITIVE_HEADERS else value
+        for key, value in headers.items()
+    }
 
-    - Inherits from dict, so it can be serialized directly via json.dumps
-    - Provides attribute-like access (e.g., result.response_message)
-    - print(result) shows a human-readable summary
-    """
+
+class ChatResult(dict):
+    """Dictionary-compatible result returned by the chat API."""
 
     def __init__(
         self,
@@ -92,6 +59,7 @@ class ChatResult(dict):
         use_deep_research: Optional[bool] = None,
         request_headers: Optional[Dict[str, Any]] = None,
         request_body: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
     ) -> None:
         super().__init__(
             sent_message=sent_message,
@@ -103,103 +71,67 @@ class ChatResult(dict):
             use_deep_research=use_deep_research,
             request_headers=request_headers or {},
             request_body=request_body or {},
+            error=error,
         )
 
-    # プロパティで属性アクセスを提供
     @property
     def sent_message(self) -> str:
-        """The message that was sent to the chat API.
-
-        Returns
-        -------
-        str
-            The original message sent by the user.
-        """
         return cast(str, self["sent_message"])
 
     @property
     def response_message(self) -> Optional[str]:
-        """The response message received from the chat API.
-
-        Returns
-        -------
-        Optional[str]
-            The response message, or None if no response was received or an error occurred.
-        """
         return cast(Optional[str], self["response_message"])
 
     @property
     def status_code(self) -> Any:
-        """The HTTP status code from the API request.
-
-        Returns
-        -------
-        Any
-            The status code (typically int), or "N/A" if the request failed before receiving a response.
-        """
         return self["status_code"]
 
     @property
     def reference_files(self) -> List[str]:
-        """List of reference files mentioned in the response.
-
-        Returns
-        -------
-        List[str]
-            List of file paths or references mentioned in the chat response.
-        """
         return cast(List[str], self["reference_files"])
 
     @property
     def reference_file_contents(self) -> Dict[str, str]:
-        """Contents of referenced files.
-
-        Returns
-        -------
-        Dict[str, str]
-            Dictionary mapping file paths to their contents.
-        """
         return cast(Dict[str, str], self["reference_file_contents"])
 
     @property
     def wiki_url(self) -> Optional[str]:
-        """The DeepWiki page URL used as context for the request."""
-        return self.get("wiki_url")
+        return cast(Optional[str], self.get("wiki_url"))
 
     @property
     def use_deep_research(self) -> Optional[bool]:
-        """Whether Deep Research mode was enabled for this request."""
-        return self.get("use_deep_research")
+        return cast(Optional[bool], self.get("use_deep_research"))
 
     @property
     def request_headers(self) -> Dict[str, Any]:
-        """The HTTP headers that were sent to the API (sanitized as provided)."""
         return cast(Dict[str, Any], self.get("request_headers", {}))
 
     @property
     def request_body(self) -> Dict[str, Any]:
-        """The JSON body that was sent to the API."""
         return cast(Dict[str, Any], self.get("request_body", {}))
 
+    @property
+    def error(self) -> Optional[str]:
+        return cast(Optional[str], self.get("error"))
+
+    @property
+    def success(self) -> bool:
+        return self.error is None
+
     def to_dict(self) -> Dict[str, Any]:
-        """Return as a plain dict (for compatibility)."""
         return dict(self)
 
     def __str__(self) -> str:
         body = (self.response_message or "").strip()
         body_preview = body if len(body) <= 400 else body[:400] + "…"
-        refs_count = len(self.reference_files)
-        contents_count = len(self.reference_file_contents or {})
-        deep = "ON" if self.use_deep_research else "OFF"
         return (
             "ChatResult(\n"
+            f"  success={self.success},\n"
             f"  status_code={self.status_code},\n"
             f"  wiki_url={self.wiki_url!r},\n"
-            f"  use_deep_research={deep},\n"
             f"  sent_message={self.sent_message!r},\n"
             f"  response_message={body_preview!r},\n"
-            f"  reference_files={refs_count} file(s),\n"
-            f"  reference_file_contents={contents_count} item(s)\n"
+            f"  reference_files={len(self.reference_files)} file(s)\n"
             ")"
         )
 
@@ -211,166 +143,103 @@ async def send_chat_message(
     use_deep_research: bool = False,
     devlog: bool = False,
 ) -> ChatResult:
-    """Send a message to the Devin API and receive a streaming response.
+    """Send a Devin API query and consume its WebSocket response."""
+    if config is None:
+        raise ValueError("config is required; load it with load_config(config_file)")
 
-    Parameters
-    ----------
-    wiki_url : str
-        DeepWiki page URL used as context.
-    message : str
-        User message.
-    config : Optional[Dict[str, Any]]
-        Configuration. When None, this attempts to load 'config.json' located next to this chat.py (i.e., src/config.json).
-    use_deep_research : bool
-        Whether to enable Deep Research mode.
-    devlog : bool
-        When True, print a human-readable sending log.
-
-    Returns
-    -------
-    ChatResult
-        Result containing response body, status code, and reference files/contents.
-    """
     try:
         import requests  # type: ignore
-    except ModuleNotFoundError as e:
-        raise RuntimeError(
-            "'requests' is required for chat. Install via: pip install requests"
-        ) from e
-    try:
         import websockets  # type: ignore
-    except ModuleNotFoundError as e:
+        from websockets.exceptions import WebSocketException  # type: ignore
+    except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "'websockets' is required for chat. Install via: pip install websockets"
-        ) from e
-
-    # If config is None, load src/config.json (= next to this file)
-    if config is None:
-        from pathlib import Path
-
-        default_path = str((Path(__file__).parent / "config.json").resolve())
-        loaded = load_config(default_path)
-        if not loaded:
-            raise RuntimeError(
-                f"Default config not found or failed to load at '{default_path}'"
-            )
-        config = loaded
+            "Chat dependencies are missing. Install deepwiki-to-md[chat]."
+        ) from exc
 
     post_url = "https://api.devin.ai/ada/query"
     ws_base_url = "wss://api.devin.ai/ada/ws/query/"
-
     headers: Dict[str, str] = dict(config.get("headers", {}) or {})
     headers["Content-Type"] = "application/json"
 
-    # Normalize the URL to support owner/repo and /owner/repo inputs
     normalized_wiki_url = normalize_deepwiki_url(wiki_url)
-
-    parsed = urlparse(normalized_wiki_url)
-    repo_name = parsed.path.strip("/")
-    context_query = (
-        f"<relevant_context>This query was sent from the wiki page: {normalized_wiki_url}</relevant_context>"
-        f"{message}"
-    )
-
-    data_payload: Dict[str, Any] = dict(config.get("body_template", {}) or {})
-    new_query_id = f"plugin_{uuid.uuid4()}"
-    data_payload.update(
+    repo_name = urlparse(normalized_wiki_url).path.strip("/")
+    query_id = f"plugin_{uuid.uuid4()}"
+    payload: Dict[str, Any] = dict(config.get("body_template", {}) or {})
+    payload.update(
         {
-            "user_query": context_query,
+            "user_query": (
+                "<relevant_context>This query was sent from the wiki page: "
+                f"{normalized_wiki_url}</relevant_context>{message}"
+            ),
             "repo_names": [repo_name] if repo_name else [],
-            "query_id": new_query_id,
+            "query_id": query_id,
             "use_deep_research": use_deep_research,
         }
     )
 
     result = ChatResult(
         sent_message=message,
-        response_message=None,
-        status_code=None,
-        reference_files=[],
-        reference_file_contents={},
         wiki_url=normalized_wiki_url,
         use_deep_research=use_deep_research,
-        request_headers=dict(headers),
-        request_body=dict(data_payload),
+        request_headers=_sanitized_headers(headers),
+        request_body=dict(payload),
     )
 
     if devlog:
-        print("--- Sending chat message ---")
-        print(f"URL context: {normalized_wiki_url}")
-        print(f"Message: {message}")
-        print(f"Deep Research mode: {'ON' if use_deep_research else 'OFF'}\n")
+        print(f"Sending chat message for {normalized_wiki_url}")
 
-    # HTTP request
+    loop = asyncio.get_running_loop()
     try:
-        response = requests.post(
-            post_url, headers=headers, json=data_payload, timeout=60
+        response = await loop.run_in_executor(
+            None,
+            lambda: requests.post(post_url, headers=headers, json=payload, timeout=60),
         )
-    except requests.RequestException as e:
+    except requests.RequestException as exc:
         result["status_code"] = "N/A"
-        result["response_message"] = f"HTTP request failed: {e}"
+        result["error"] = f"HTTP request failed: {exc}"
+        result["response_message"] = result["error"]
         return result
 
     result["status_code"] = response.status_code
     if not response.ok:
-        result["response_message"] = f"HTTP error: {response.text}"
+        result["error"] = f"HTTP {response.status_code}: {response.text}"
+        result["response_message"] = result["error"]
         return result
 
-    # Prepare for WebSocket stream
     final_response = ""
     reference_files = set()
     file_contents: Dict[str, str] = {}
-
-    ws_url = f"{ws_base_url}{new_query_id}"
-
-    def _handle_ws_message(message_data: Dict[str, Any]) -> bool:
-        """Handle a single WebSocket message. Returns True when stream is complete."""
-        nonlocal final_response
-        msg_type = message_data.get("type")
-
-        if msg_type == "chunk":
-            final_response += message_data.get("data", "")
-            return False
-
-        if msg_type == "reference":
-            data = message_data.get("data") or {}
-            file_path = data.get("file_path")
-            if file_path:
-                reference_files.add(file_path)
-            return False
-
-        if msg_type == "file_contents":
-            data = message_data.get("data")
-            if isinstance(data, list) and len(data) > 2:
-                file_path = f"{data[0]}: {data[1]}"
-                content = data[2]
-                reference_files.add(file_path)
-                file_contents[file_path] = content
-            return False
-
-        return msg_type == "done"
-
     try:
-        async with websockets.connect(ws_url) as websocket:
+        async with websockets.connect(f"{ws_base_url}{query_id}") as websocket:
             while True:
                 raw_message = await websocket.recv()
                 message_data = json.loads(raw_message)
-                if _handle_ws_message(message_data):
+                message_type = message_data.get("type")
+                if message_type == "chunk":
+                    final_response += str(message_data.get("data", ""))
+                elif message_type == "reference":
+                    data = message_data.get("data") or {}
+                    file_path = data.get("file_path")
+                    if file_path:
+                        reference_files.add(str(file_path))
+                elif message_type == "file_contents":
+                    data = message_data.get("data")
+                    if isinstance(data, list) and len(data) > 2:
+                        file_path = f"{data[0]}: {data[1]}"
+                        reference_files.add(file_path)
+                        file_contents[file_path] = str(data[2])
+                elif message_type == "done":
                     break
-    except Exception as e:
-        logging.exception("WebSocket stream failed")
-        result["response_message"] = f"WebSocket error: {e}"
+    except (WebSocketException, OSError, ValueError, json.JSONDecodeError) as exc:
+        logging.error("WebSocket stream failed: %s", exc)
+        result["error"] = f"WebSocket error: {exc}"
+        result["response_message"] = result["error"]
         return result
 
     result["response_message"] = final_response.replace("<cite/>", "").strip()
-    result["reference_files"] = sorted(list(reference_files))
+    result["reference_files"] = sorted(reference_files)
     result["reference_file_contents"] = file_contents
     return result
 
 
-__all__ = [
-    "save_config",
-    "load_config",
-    "ChatResult",
-    "send_chat_message",
-]
+__all__ = ["save_config", "load_config", "ChatResult", "send_chat_message"]

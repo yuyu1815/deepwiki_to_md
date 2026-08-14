@@ -1,11 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = [
+    "setuptools>=77.0.3; python_version >= '3.9'",
+    "setuptools>=75.3.2,<77; python_version < '3.9'",
+    "wheel",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepwiki-to-md"
 version = "2.0.3"
-description = "Extensible Next.js/DeepWiki content extractor with zero external dependencies"
+description = "Extensible Next.js/DeepWiki content extractor with optional chat support"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -21,12 +25,11 @@ keywords = [
     "markdown", 
     "extraction", 
     "content",
-    "zero-dependency"
+    "chat"
 ]
 classifiers = [
 "Development Status :: 5 - Production/Stable",
 "Intended Audience :: Developers",
-"License :: OSI Approved :: MIT License",
 "Programming Language :: Python :: 3",
 "Programming Language :: Python :: 3.8",
 "Programming Language :: Python :: 3.9",
@@ -40,9 +43,13 @@ classifiers = [
 "Topic :: Text Processing :: Markup :: Markdown",
 ]
 requires-python = ">=3.8.1"
-dependencies = []  # Zero external dependencies - pure Python stdlib only
+dependencies = []
 
 [project.optional-dependencies]
+chat = [
+    "requests>=2.31.0",
+    "websockets>=12.0",
+]
 dev = [
     "pytest>=7.0.0",
     "black>=23.0.0",
@@ -70,12 +77,6 @@ deepwiki-to-md = "cli:main"
 package-dir = {"" = "src"}
 packages = ["deepwiki", "deepwiki.core", "deepwiki.parsing", "deepwiki.extraction", "deepwiki.output"]
 py-modules = ["cli", "chat", "search_repository"]
-
-[tool.setuptools.data-files]
-"share/deepwiki_to_md" = [
-    "src/config.json",
-]
-
 
 # Development tools configuration
 [tool.black]
@@ -129,6 +130,9 @@ addopts = [
     "--strict-config",
     "--basetemp=.pytest_tmp",
     "--cov=deepwiki",
+    "--cov=cli",
+    "--cov=chat",
+    "--cov=search_repository",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -142,7 +146,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["deepwiki", "cli", "chat", "search_repository"]
 omit = [
     "tests/*",
     "scripts/*",

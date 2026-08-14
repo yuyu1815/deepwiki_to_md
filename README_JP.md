@@ -1,26 +1,33 @@
 # deepwiki-to-md
 
-Next.js/DeepWiki 由来のHTMLからMarkdownテキストを抽出するゼロ依存のCLIツール。
+Next.js/DeepWiki 由来の HTML から Markdown を抽出する CLI / Python ライブラリです。コア抽出機能は Python 標準ライブラリのみで動作し、Chat 機能は optional extra として提供します。
 
 - CLI: `deepwiki-to-md`
-- 必要要件: Python 3.8+
-- 依存関係: 標準ライブラリのみ（オプション機能は extras）
+- 必要要件: Python 3.8.1+
 
 ## インストール
+
+コア抽出機能:
 
 ```bash
 pip install deepwiki-to-md
 ```
 
+Chat 機能（`requests` と `websockets` を含む）:
+
+```bash
+pip install "deepwiki-to-md[chat]"
+```
+
 ## 使い方
 
-- ローカルHTML/文字列から（CLI と Python の両方）:
+### HTML 文字列から抽出
+
 ```bash
-# CLI
 echo "<html>...</html>" | deepwiki-to-md
 ```
+
 ```python
-# Python API
 from deepwiki import ContentExtractor
 
 html = """
@@ -29,110 +36,122 @@ html = """
 """
 
 extractor = ContentExtractor()
-md = extractor.extract_from_html(html)
-print(md)
+print(extractor.extract_from_html(html))
 ```
 
-- URLから（保存は URL 入力時のみ）:
+### URL から抽出して保存
+
 ```bash
-# CLI
-# URL 入力のときのみ、.deepwiki 配下に分割保存されます
 deepwiki-to-md https://deepwiki.com/microsoft/vscode/some-page --path ./.deepwiki
 ```
+
 ```python
-# Python API（CLI と同等の動作）
 from deepwiki import ContentExtractor, save_markdown_to_library
 
 url = "https://deepwiki.com/microsoft/vscode/some-page"
-base_dir = "./.deepwiki"  # --path に相当（省略可）
+base_dir = "./.deepwiki"
 
 extractor = ContentExtractor()
-md = extractor.extract_from_url(url)
+markdown = extractor.extract_from_url(url)
+result = save_markdown_to_library(markdown, url, base_dir)
 
-result = save_markdown_to_library(md, url, base_dir)
-print("saved files:")
-for p in result["saved_files"]:
-    print(" -", p)
-print("library index:", result["library_file"])  # .deepwiki/<username>/<library>.md
+for path in result["saved_files"]:
+    print(path)
+print(result["library_file"])
 ```
 
-- 検索機能（公開リポジトリ・インデックス）:
-```bash
-# CLI（既定は JSON 出力）
-deepwiki-to-md --search "Gemini"
+ファイル保存は URL 入力時のみ行われます。
 
-# 人間可読な開発ログ形式
+### 公開リポジトリ・インデックスを検索
+
+```bash
+deepwiki-to-md --search "Gemini"
 deepwiki-to-md --search "Gemini" --devlog
 ```
+
 ```python
-# Python API（CLI と同等の検索機能）
-from search_repository import search_repositories, API_URL
+from search_repository import API_URL, search_repositories
 
-print(API_URL)  # => https://api.devin.ai/ada/list_public_indexes
+print(API_URL)
 result = search_repositories("Gemini")
-indices = result.get("indices", [])
-print("indices:", len(indices))
+print("indices:", len(result.get("indices", [])))
 ```
 
-- Chat（CLI）:
+### Devin API Chat
+
+最初に Chat extra をインストールし、設定 JSON を用意してください。
+
 ```bash
-# 位置引数には DeepWiki の URL を指定（既定は JSON 出力）
-deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "このリポジトリの目的は？"
-
-# 開発ログ向けの人間可読出力
-deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "主な特徴を要約して" --devlog
+pip install "deepwiki-to-md[chat]"
 ```
-Chat 用オプション（deepwiki-to-md 経由）:
-- `--chat MESSAGE`: 送信するメッセージ。位置引数に DeepWiki の URL が必須。
-- `--deep-research`: Deep Research モードを有効化。
-- `--config-file PATH`: チャット用の設定 JSON のパス（既定: ./config.json）。ファイルは事前に用意し、必要項目を記載してください。
-- `--devlog`: --chat と併用で、応答本文と参照ファイルを人間可読で表示。
 
-## ライセンス
+設定ファイルは必須です。Devin API に必要な設定を持つ `headers` オブジェクトと `body_template` オブジェクトの両方を記載してください。`user_query`、`repo_names`、`query_id`、`use_deep_research` など、リクエストごとに変わる値はクライアントが設定します。
 
-MIT License
+```json
+{
+  "headers": {
+    "Accept": "*/*",
+    "Origin": "https://deepwiki.com",
+    "Referer": "https://deepwiki.com/"
+  },
+  "body_template": {
+    "engine_id": "multihop",
+    "keywords": [],
+    "additional_context": "",
+    "use_notes": false,
+    "generate_summary": false
+  }
+}
+```
 
-## 詳細ドキュメント
+```bash
+deepwiki-to-md https://deepwiki.com/microsoft/vscode \
+  --chat "このリポジトリの目的は？" \
+  --config-file ./config.json
+```
 
-- ライブラリ（Python API と CLI の併記例を含む）: [deepwiki_to_md.md](deepwiki_to_md.md)
+Chat オプション:
 
-### Chat (Devin API) の結果オブジェクト: ChatResult
+- `--chat MESSAGE`: 送信メッセージ。位置引数に DeepWiki URL が必須です。
+- `--deep-research`: Deep Research モードを有効化します。
+- `--config-file PATH`: 用意済み設定 JSON のパス（既定: `./config.json`）。
+- `--devlog`: 応答と参照ファイルを人間可読形式で表示します。
 
-chat ヘルパー（src/chat.py）の send_chat_message は、辞書ではなく「オブジェクト型」の ChatResult を返します。
+Python 例:
 
-- 特長
-  - dict を継承しているため json.dumps(result) がそのまま使えます。
-  - 便利な属性アクセス（result.response_message など）と to_dict() を提供します。
-  - print(result) で人間が読みやすい要約が表示されます。
-
-- 主なプロパティ
-  - sent_message: 送信したメッセージ（str）
-  - response_message: 応答本文（Optional[str]）
-  - status_code: ステータスコード（Any）
-  - reference_files: 参照ファイルのリスト（List[str]）
-  - reference_file_contents: 参照ファイルの内容（Dict[str, str]）
-
-- 例（簡易抜粋）
 ```python
 import asyncio
 import json
-from chat import load_config, send_chat_message, ChatResult
+
+from chat import ChatResult, load_config, send_chat_message
+
 
 async def main() -> None:
-    config = load_config('./config.json')
+    config = load_config("config.json")
     if not config:
-        raise SystemExit('config missing')
+        raise SystemExit("完全な config.json が必要です")
+
     result: ChatResult = await send_chat_message(
-        wiki_url='https://deepwiki.com/microsoft/vscode',
-        message='What is the purpose of this repository?',
+        wiki_url="https://deepwiki.com/microsoft/vscode",
+        message="このリポジトリの目的は？",
         config=config,
         use_deep_research=False,
     )
+    print(result)
+    print(result.response_message)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 
-    print(result)  # __str__ による要約
-    print(result.response_message)  # プロパティアクセス
-    print(json.dumps(result, indent=2, ensure_ascii=False))  # dict 継承のためそのまま JSON 出力
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+`ChatResult` は `dict` を継承し、`result.response_message` のような属性アクセスと `to_dict()` を提供します。
+
+## 詳細ドキュメント
+
+- [Python API / CLI ガイド](deepwiki_to_md.md)
+
+## ライセンス
+
+MIT License。詳細は [LICENSE](LICENSE) を参照してください。

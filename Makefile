@@ -1,17 +1,26 @@
-# Simple helpers for building and uploading the package
+# Local development helpers. Install the dev extra before running these targets.
 
-.PHONY: build clean upload upload-test dist
+.PHONY: build clean format format-check lint type-check check
 
 build:
-	python -m pip install --upgrade build twine
 	python -m build
 
 clean:
-	rm -rf build dist *.egg-info src/*.egg-info
+	rm -rf build dist .pytest_tmp .coverage htmlcov coverage.xml *.egg-info src/*.egg-info
 
-upload: build
-	twine upload --repository deepwiki_to_md dist/*
+format:
+	python -m black src wiki_tests
+	python -m isort src wiki_tests
 
-upload-test: build
-	# Requires TWINE_PASSWORD (TestPyPI token) to be set; username is __token__
-	twine upload --repository testpypi dist/*
+format-check:
+	python -m black --check src tests wiki_tests
+	python -m isort --check-only src tests wiki_tests
+
+lint:
+	python -m flake8 src tests wiki_tests
+
+type-check:
+	python -m mypy src
+
+check: format-check lint type-check
+	python -m pytest

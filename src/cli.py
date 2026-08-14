@@ -82,6 +82,7 @@ class CLIInterface:
     def __init__(self) -> None:
         self.parser = self._setup_parser()
         self.extractor = ContentExtractor()
+        self.structured_pages: Optional[List[Dict[str, Any]]] = None
 
     def _setup_parser(self) -> argparse.ArgumentParser:
         """Set up the command-line argument parser."""
@@ -152,7 +153,7 @@ class CLIInterface:
             self._write_output(parsed_args, content)
             return 0
         except Exception as e:
-            logging.error(f"CLI failed: {e}")
+            logging.error("CLI failed: %s", e)
             return 1
 
     def _read_input(self, parsed_args: argparse.Namespace) -> str:
@@ -175,7 +176,10 @@ class CLIInterface:
         # URL first (avoid misclassifying URLs ending with .html as files)
         parsed = urlparse(inp)
         if parsed.scheme in ("http", "https") and parsed.netloc:
-            return self.extractor.extract_from_url(inp)
+            content, self.structured_pages = self.extractor.extract_document_from_url(
+                inp
+            )
+            return content
 
         # Existing file path
         if os.path.isfile(inp):
@@ -183,8 +187,9 @@ class CLIInterface:
                 html = f.read()
             return self.extractor.extract_from_html(html, inp)
 
-        # Fallback: treat as DeepWiki library path or URL-like string
-        return self.extractor.extract_from_url(inp)
+        # Fallback: treat as a DeepWiki owner/repository path.
+        content, self.structured_pages = self.extractor.extract_document_from_url(inp)
+        return content
 
     def _write_output(self, parsed_args: argparse.Namespace, content: str) -> None:
         """Write local input to stdout and save remote input as files."""
@@ -194,7 +199,12 @@ class CLIInterface:
             return
 
         base_dir = parsed_args.path or ".deepwiki"
-        result = save_markdown_to_library(content, parsed_args.input, base_dir)
+        result = save_markdown_to_library(
+            content,
+            parsed_args.input,
+            base_dir,
+            pages=self.structured_pages,
+        )
         saved_files = result.get("saved_files", [])
         library_file_path = result.get("library_file")
         print(f"Content split into {len(saved_files)} files:")
@@ -231,7 +241,8 @@ class CLIInterface:
             )
         )
 
-        # If --devlog is specified, display response body and reference files after the sending log (output by chat.py)
+        exit_code = 0 if api_result.success else 1
+
         if getattr(parsed_args, "devlog", False):
             print("--- chat message ---")
             response_body = api_result.get("response_message") or ""
@@ -243,11 +254,10 @@ class CLIInterface:
             if reference_files:
                 print()
                 print(f'"reference_files": {reference_files}')
-            return 0
+            return exit_code
 
-        # 既定は JSON のみを返す
         print(json.dumps(api_result, indent=4, ensure_ascii=False))
-        return 0
+        return exit_code
 
     # ライブラリ検索
     def _run_search(self, parsed_args: argparse.Namespace) -> int:

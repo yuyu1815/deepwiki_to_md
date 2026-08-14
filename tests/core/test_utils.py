@@ -69,9 +69,18 @@ class TestSanitizeFilename:
         assert sanitize_filename("!!!") == "unnamed"
 
     @pytest.mark.unit
-    def test_very_long_filename_preserved(self):
-        long_name = "a" * 300
-        assert sanitize_filename(long_name) == long_name
+    def test_very_long_filename_is_truncated(self):
+        result = sanitize_filename("a" * 300)
+        assert len(result) == 120
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("name", ["CON", "nul.txt", "COM1", "LPT9.log"])
+    def test_windows_reserved_names_are_prefixed(self, name):
+        assert sanitize_filename(name).startswith("_")
+
+    @pytest.mark.unit
+    def test_trailing_dots_and_spaces_are_removed(self):
+        assert sanitize_filename("report. ") == "report"
 
     @pytest.mark.unit
     def test_dots_and_hyphens_preserved(self):

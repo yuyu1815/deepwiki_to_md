@@ -1,31 +1,35 @@
 # deepwiki-to-md
 
-
 English README. 日本語はこちら → [README_JP.md](README_JP.md)
 
-
-
-Zero-dependency CLI and Python library to extract Markdown from Next.js/DeepWiki HTML. Includes a small search helper for public repository indexes and an optional chat helper.
+CLI and Python library for extracting Markdown from Next.js/DeepWiki HTML. The core extractor uses only the Python standard library. Chat support is an optional extra.
 
 - CLI: `deepwiki-to-md`
-- Requirements: Python 3.8+
-- Dependencies: Standard library only (optional extras for dev/docs)
+- Requirements: Python 3.8.1+
 
 ## Install
+
+Core extractor:
 
 ```bash
 pip install deepwiki-to-md
 ```
 
+Chat support (`requests` and `websockets`):
+
+```bash
+pip install "deepwiki-to-md[chat]"
+```
+
 ## Usage
 
-- From local HTML/string (CLI and Python):
+### Extract from an HTML string
+
 ```bash
-# CLI
 echo "<html>...</html>" | deepwiki-to-md
 ```
+
 ```python
-# Python API
 from deepwiki import ContentExtractor
 
 html = """
@@ -34,151 +38,122 @@ html = """
 """
 
 extractor = ContentExtractor()
-md = extractor.extract_from_html(html)
-print(md)
+print(extractor.extract_from_html(html))
 ```
 
-- From URL (files are saved only when the input is a URL):
+### Extract from a URL and save Markdown
+
 ```bash
-# CLI
-# Files under .deepwiki are created only for URL input
 deepwiki-to-md https://deepwiki.com/microsoft/vscode/some-page --path ./.deepwiki
 ```
+
 ```python
-# Python API (same behavior as the CLI)
 from deepwiki import ContentExtractor, save_markdown_to_library
 
 url = "https://deepwiki.com/microsoft/vscode/some-page"
-base_dir = "./.deepwiki"  # equivalent to --path (optional)
+base_dir = "./.deepwiki"
 
 extractor = ContentExtractor()
-md = extractor.extract_from_url(url)
+markdown = extractor.extract_from_url(url)
+result = save_markdown_to_library(markdown, url, base_dir)
 
-result = save_markdown_to_library(md, url, base_dir)
-print("saved files:")
-for p in result["saved_files"]:
-    print(" -", p)
-print("library index:", result["library_file"])  # .deepwiki/<username>/<library>.md
+for path in result["saved_files"]:
+    print(path)
+print(result["library_file"])
 ```
 
-- Search public repository indexes:
-```bash
-# CLI (JSON by default)
-deepwiki-to-md --search "Gemini"
+Files are saved only for URL input.
 
-# Human-readable development-log style
+### Search public repository indexes
+
+```bash
+deepwiki-to-md --search "Gemini"
 deepwiki-to-md --search "Gemini" --devlog
 ```
+
 ```python
-# Python API (same search capability)
-from search_repository import search_repositories, API_URL
+from search_repository import API_URL, search_repositories
 
-print(API_URL)  # => https://api.devin.ai/ada/list_public_indexes
+print(API_URL)
 result = search_repositories("Gemini")
-indices = result.get("indices", [])
-print("indices:", len(indices))
+print("indices:", len(result.get("indices", [])))
 ```
 
-- Chat with Devin API (via CLI):
+### Chat with the Devin API
+
+Install the chat extra first and prepare a config JSON:
+
 ```bash
-# Positional argument must be a DeepWiki URL
-# JSON output by default
-deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "What is the purpose of this repository?"
-
-# Human-readable output for development logs
-deepwiki-to-md https://deepwiki.com/microsoft/vscode --chat "Summarize top features" --devlog
+pip install "deepwiki-to-md[chat]"
 ```
-Options for chat via deepwiki-to-md:
-- `--chat MESSAGE`: Message to send. Requires a DeepWiki URL as the positional input.
-- `--deep-research`: Enable deep research mode for chat.
-- `--config-file PATH`: Path to chat config JSON (default: ./config.json). The file must exist and contain complete settings.
-- `--devlog`: When used with --chat, prints a human-readable response body and reference files.
 
-## License
+The config file is required. It must contain both a `headers` object and a `body_template` object with the settings required by the Devin API. Request-specific values such as `user_query`, `repo_names`, `query_id`, and `use_deep_research` are populated by the client.
 
-MIT License
+```json
+{
+  "headers": {
+    "Accept": "*/*",
+    "Origin": "https://deepwiki.com",
+    "Referer": "https://deepwiki.com/"
+  },
+  "body_template": {
+    "engine_id": "multihop",
+    "keywords": [],
+    "additional_context": "",
+    "use_notes": false,
+    "generate_summary": false
+  }
+}
+```
 
-## More documentation
+```bash
+deepwiki-to-md https://deepwiki.com/microsoft/vscode \
+  --chat "What is the purpose of this repository?" \
+  --config-file ./config.json
+```
 
-- Library reference (includes both Python API and CLI examples): [deepwiki_to_md.md](deepwiki_to_md.md)
+Chat options:
 
-### Chat (Devin API) result object: ChatResult
+- `--chat MESSAGE`: message to send; a DeepWiki URL is required as positional input.
+- `--deep-research`: enable deep research mode.
+- `--config-file PATH`: required prepared config JSON path (default: `./config.json`).
+- `--devlog`: print a human-readable response and reference files.
 
-The chat helper (src/chat.py) returns a ChatResult object instead of a plain dict.
+Python example:
 
-- Highlights
-  - Inherits from dict → works with json.dumps(result) directly.
-  - Convenient attribute access (e.g., result.response_message) and to_dict().
-  - print(result) shows a human-readable summary.
-
-- Main properties
-  - sent_message: str
-  - response_message: Optional[str]
-  - status_code: Any
-  - reference_files: List[str]
-  - reference_file_contents: Dict[str, str]
-
-- Example (excerpt)
 ```python
 import asyncio
 import json
-from chat import load_config, send_chat_message, ChatResult
+
+from chat import ChatResult, load_config, send_chat_message
+
 
 async def main() -> None:
     config = load_config("config.json")
     if not config:
-        print("Error: config.json not found. Please create it first.")
-        return
+        raise SystemExit("A complete config.json is required")
 
     result: ChatResult = await send_chat_message(
-        wiki_url='https://deepwiki.com/microsoft/vscode',
-        message='What is the purpose of this repository?',
+        wiki_url="https://deepwiki.com/microsoft/vscode",
+        message="What is the purpose of this repository?",
         config=config,
         use_deep_research=False,
     )
+    print(result)
+    print(result.response_message)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 
-    print(result)  # human-readable summary via __str__
-    print(result.response_message)  # attribute access
-    print(json.dumps(result, indent=2, ensure_ascii=False))  # still a dict
 
-if __name__ == '__main__':
-    asyncio.run(main())
-```
-```python
-import asyncio
-import json
-from chat import load_config, send_chat_message, ChatResult
-
-async def main() -> None:
-    result: ChatResult = await send_chat_message(
-        wiki_url='https://deepwiki.com/microsoft/vscode',
-        message='What is the purpose of this repository?',
-        use_deep_research=False,
-    )
-
-    print(result)  # human-readable summary via __str__
-    print(result.response_message)  # attribute access
-    print(json.dumps(result, indent=2, ensure_ascii=False))  # still a dict
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Arguments for chat.py:
-- `--url`: URL of the chat interface.
-- `--message`: Message to send.
-- `--selector`: CSS selector for the chat input (default: textarea).
-- `--button`: CSS selector for the submit button (default: button).
-- `--wait`: Time to wait for response in seconds (default: 30).
-- `--debug`: Enable debug mode.
-- `--output`: Output directory (default: ChatResponses).
-- `--deep`: Enable "Deep Research" mode (specific to some interfaces).
-- `--headless`: Run browser in headless mode.
-- `--format`: Output format(s): html, md, yaml, or comma-separated list (default: html).
+`ChatResult` inherits from `dict`, supports attribute access such as `result.response_message`, and provides `to_dict()`.
 
-Note: The chat scraper uses Selenium, which requires a compatible browser installed.
+## More documentation
+
+- [Python API and CLI guide](deepwiki_to_md.md)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
-
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

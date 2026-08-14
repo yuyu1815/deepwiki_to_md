@@ -5,17 +5,21 @@ How to run:
 
 This prints JSON summary by default, or a human-readable log style when --devlog is specified.
 """
+
 from __future__ import annotations
 
 import argparse
 from typing import Any, Dict, List
-from search_repository import search_repositories, API_URL
+
+from search_repository import API_URL, search_repositories
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Search public indexes (Devin API)")
     p.add_argument("--search", default="Gemini", help="Search term (default: Gemini)")
-    p.add_argument("--devlog", action="store_true", help="Print human-readable log format")
+    p.add_argument(
+        "--devlog", action="store_true", help="Print human-readable log format"
+    )
     return p.parse_args()
 
 

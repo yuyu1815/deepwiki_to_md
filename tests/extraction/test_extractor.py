@@ -54,3 +54,23 @@ def test_extract_from_html_non_deepwiki_html_uses_fallback():
     html = "<html><head><title>Test Page</title></head><body>plain text</body></html>"
     result = extractor.extract_from_html(html)
     assert "Test Page" in result or result.strip()
+
+
+def test_extract_document_from_url_fetches_once_and_returns_pages(monkeypatch):
+    html = '<script>self.__next_f.push([1,"17:T5,Hello"])</script>'
+    extractor = ContentExtractor()
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return html
+
+    monkeypatch.setattr(extractor.http_client, "fetch_url", fetch)
+    monkeypatch.setattr(
+        "deepwiki.extraction.extractor.extract_structured_pages",
+        lambda source: [{"title": "Page", "content": "Hello", "slug": "page"}],
+    )
+    markdown, pages = extractor.extract_document_from_url("owner/repo")
+    assert markdown
+    assert pages and pages[0]["slug"] == "page"
+    assert calls == ["https://deepwiki.com/owner/repo"]

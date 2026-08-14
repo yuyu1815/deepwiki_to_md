@@ -214,6 +214,16 @@ class TestExtractStructuredPages:
         result = extract_structured_pages(html)
         assert result is None
 
+    def test_returns_none_when_only_some_pages_resolve(self):
+        rsc_data = (
+            '5:["$","$L15",null,{"wiki":{"pages":['
+            '{"page_plan":{"id":"1","title":"One"},"content":"$17"},'
+            '{"page_plan":{"id":"2","title":"Two"},"content":"$18"}'
+            "]}}]\n17:T5,Hello"
+        )
+        html = _build_mock_html(rsc_data)
+        assert extract_structured_pages(html) is None
+
     def test_result_has_required_fields(self):
         content = "# Test Page\n\nContent here."
         bl = format(len(content.replace("\\n", "\n").encode("utf-8")), "x")

@@ -74,6 +74,22 @@ class TestSaveLibraryOffline:
         assert len(result["saved_files"]) == 2
 
     @pytest.mark.unit
+    def test_duplicate_section_names_do_not_overwrite(self, tmp_path):
+        result = save_markdown_to_library(
+            "# Same\none\n# Same\ntwo",
+            source_url="myuser/myrepo",
+            base_dir=str(tmp_path),
+        )
+        names = [os.path.basename(path) for path in result["saved_files"]]
+        assert names == ["Same.md", "Same_2.md"]
+        assert [
+            open(path, encoding="utf-8").read() for path in result["saved_files"]
+        ] == [
+            "one",
+            "two",
+        ]
+
+    @pytest.mark.unit
     def test_invalid_source_url_no_path_raises_config_error(self, tmp_path):
         with pytest.raises(ConfigError):
             save_markdown_to_library(
@@ -264,6 +280,26 @@ class TestSaveWithStructuredPages:
             pages=[],
         )
         assert len(result["saved_files"]) == 2
+
+    def test_unsafe_structured_slug_is_sanitized(self, tmp_path):
+        pages = [
+            {
+                "id": "1",
+                "title": "Unsafe",
+                "content": "content",
+                "slug": "../escaped",
+            }
+        ]
+        result = save_markdown_to_library(
+            md="",
+            source_url="owner/repo",
+            base_dir=str(tmp_path),
+            pages=pages,
+        )
+        saved = os.path.abspath(result["saved_files"][0])
+        expected_root = os.path.abspath(result["output_dir"])
+        assert os.path.commonpath([saved, expected_root]) == expected_root
+        assert not (tmp_path / "owner" / "escaped.md").exists()
 
     def test_single_page(self, tmp_path):
         single = [STRUCTURED_PAGES[0]]
